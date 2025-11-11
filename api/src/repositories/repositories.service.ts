@@ -112,12 +112,6 @@ export class RepositoriesService {
           s3ArchiveUrl: s3Key,
         },
       });
-
-      // Index all files in the cloned repository
-      const updatedRepo = await this.prisma.repository.findUnique({
-        where: { id: repo.id },
-      });
-      await this.indexRepositoryFiles(updatedRepo, repo.id);
     } catch (error) {
       // Update status to FAILED
       await this.prisma.repository.update({
