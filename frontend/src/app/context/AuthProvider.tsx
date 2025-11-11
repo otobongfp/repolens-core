@@ -11,6 +11,7 @@ interface User {
   avatar_url?: string;
   is_verified: boolean;
   role: string;
+  tenant_id: string;
 }
 
 interface AuthContextType {
@@ -67,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      const response = await fetch(`${apiBase}/api/v1/auth/me`, {
+      const response = await fetch(`${apiBase}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -91,7 +92,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${apiBase}/api/v1/auth/login`, {
+      const response = await fetch(`${apiBase}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +122,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     username?: string,
   ) => {
     try {
-      const response = await fetch(`${apiBase}/api/v1/auth/register`, {
+      const response = await fetch(`${apiBase}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +149,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const token = localStorage.getItem('access_token');
       if (token) {
-        await fetch(`${apiBase}/api/v1/auth/logout`, {
+        await fetch(`${apiBase}/api/auth/logout`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -171,7 +172,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('No refresh token');
       }
 
-      const response = await fetch(`${apiBase}/api/v1/auth/refresh`, {
+      const response = await fetch(`${apiBase}/api/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -197,7 +198,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getGoogleAuthUrl = async (): Promise<string> => {
-    const response = await fetch(`${apiBase}/api/v1/auth/oauth/google`);
+    const response = await fetch(`${apiBase}/api/auth/oauth/google`);
     if (!response.ok) {
       throw new Error('Failed to get Google auth URL');
     }
@@ -206,7 +207,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getGithubAuthUrl = async (): Promise<string> => {
-    const response = await fetch(`${apiBase}/api/v1/auth/oauth/github`);
+    const response = await fetch(`${apiBase}/api/auth/oauth/github`);
     if (!response.ok) {
       throw new Error('Failed to get GitHub auth URL');
     }
@@ -220,7 +221,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   ) => {
     try {
       const response = await fetch(
-        `${apiBase}/api/v1/auth/oauth/${provider}/callback`,
+        `${apiBase}/api/auth/oauth/${provider}/callback`,
         {
           method: 'POST',
           headers: {

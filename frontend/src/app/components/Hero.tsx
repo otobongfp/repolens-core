@@ -51,10 +51,6 @@ export default function Hero() {
                   {' '}
                   and ask AI anything about the code.
                 </span>
-                <span className='block sm:inline'>
-                  {' '}
-                  RepoLens makes onboarding effortless for any project.
-                </span>
               </p>
               <div
                 className='absolute -z-10 h-full w-full mask-b-from-20%'

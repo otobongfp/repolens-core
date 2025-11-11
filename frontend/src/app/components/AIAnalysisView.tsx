@@ -32,11 +32,9 @@ export default function AIAnalysisView() {
     setError(null);
 
     try {
-      // Fetch enhanced graph from agent
       const enhancedGraph = await fetchEnhancedGraph(currentFolder);
       console.log(enhancedGraph);
       console.log('Enhanced graph:', enhancedGraph);
-      // Send to Python backend for AI analysis
       const response = await fetch(`${apiBase}/ai/analyze`, {
         method: 'POST',
         headers: {

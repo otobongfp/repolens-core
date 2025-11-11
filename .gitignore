@@ -129,3 +129,15 @@ dist
 # Temporary folders
 tmp/
 temp/
+
+# Python cache directories
+.mypy_cache/
+.ruff_cache/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-*

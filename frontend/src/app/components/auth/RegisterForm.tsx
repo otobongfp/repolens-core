@@ -3,6 +3,13 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthProvider';
 import toast from 'react-hot-toast';
+// Password validation temporarily disabled
+// import {
+//   validatePassword,
+//   getPasswordStrengthColor,
+//   getPasswordStrengthText,
+//   PasswordValidationResult,
+// } from '../../../lib/passwordValidation';
 
 interface RegisterFormProps {
   onSuccess?: () => void;
@@ -20,6 +27,20 @@ export default function RegisterForm({
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Password validation temporarily disabled
+  // const [passwordValidation, setPasswordValidation] =
+  //   useState<PasswordValidationResult>({
+  //     isValid: false,
+  //     errors: [],
+  //     strength: 'weak',
+  //   });
+
+  // Password validation temporarily disabled
+  // const handlePasswordChange = (newPassword: string) => {
+  //   setPassword(newPassword);
+  //   const validation = validatePassword(newPassword);
+  //   setPasswordValidation(validation);
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,10 +50,11 @@ export default function RegisterForm({
       return;
     }
 
-    if (password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
+    // Password validation temporarily disabled
+    // if (!passwordValidation.isValid) {
+    //   toast.error('Password does not meet requirements');
+    //   return;
+    // }
 
     setIsLoading(true);
 
@@ -149,8 +171,34 @@ export default function RegisterForm({
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className='border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-ring w-full rounded-lg border px-4 py-3 focus:ring-2 focus:outline-none'
-                placeholder='Create a password (min 8 characters)'
+                placeholder='Create a strong password'
               />
+
+              {/* Password Strength Indicator - temporarily disabled */}
+              {/* {password && (
+                <div className='mt-2'>
+                  <div className='flex items-center gap-2'>
+                    <span className='text-muted-foreground text-sm'>
+                      Strength:
+                    </span>
+                    <span
+                      className={`text-sm font-medium ${getPasswordStrengthColor(passwordValidation.strength)}`}
+                    >
+                      {getPasswordStrengthText(passwordValidation.strength)}
+                    </span>
+                  </div>
+
+                  {passwordValidation.errors.length > 0 && (
+                    <div className='mt-2 space-y-1'>
+                      {passwordValidation.errors.map((error, index) => (
+                        <div key={index} className='text-sm text-red-500'>
+                          • {error}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )} */}
             </div>
 
             <div>
@@ -174,7 +222,7 @@ export default function RegisterForm({
 
           <button
             type='submit'
-            disabled={isLoading}
+            disabled={isLoading || password !== confirmPassword}
             className='bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-primary/50 w-full rounded-lg px-4 py-3 font-semibold transition duration-200 disabled:cursor-not-allowed'
           >
             {isLoading ? 'Creating Account...' : 'Create Account'}

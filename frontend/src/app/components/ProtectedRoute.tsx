@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '../context/AuthProvider';
+import { useApi } from '../context/ApiProvider';
 import AuthModal from './auth/AuthModal';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -14,6 +15,12 @@ export default function ProtectedRoute({
   fallback,
 }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
+  const { useLocalBackend } = useApi();
+
+  // In local mode, skip auth check
+  if (useLocalBackend) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (

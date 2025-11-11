@@ -8,7 +8,7 @@ import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
-  title: 'Repolens',
+  title: 'RepoLens',
   description: 'Improving opensource education with AI',
 };
 
@@ -47,6 +47,7 @@ export default function RootLayout({
     <html lang='en' suppressHydrationWarning>
       <body
         className={`${geist.variable} ${geistMono.variable} ${manrope.variable} font-sans antialiased`}
+        suppressHydrationWarning
       >
         <ApiProvider>
           <AuthProvider>

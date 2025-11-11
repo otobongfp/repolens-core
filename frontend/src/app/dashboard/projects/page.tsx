@@ -207,7 +207,7 @@ export default function ProjectsPage() {
 
                   <div className='bg-card border-border rounded-lg border p-6'>
                     <h2 className='text-card-foreground mb-4 text-lg font-semibold'>
-                      Storage Configuration
+                      Source Configuration
                     </h2>
                     <div className='space-y-3'>
                       <div>

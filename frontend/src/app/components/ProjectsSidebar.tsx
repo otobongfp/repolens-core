@@ -45,10 +45,12 @@ export default function ProjectsSidebar({
       setLoading(true);
       setError(null);
       const response = await getProjects();
-      setProjects(response.projects);
+      const projectsList = response?.projects || [];
+      setProjects(projectsList);
     } catch (err) {
       setError('Failed to load projects');
       console.error('Failed to load projects:', err);
+      setProjects([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -195,7 +197,7 @@ export default function ProjectsSidebar({
 
       {/* Projects List */}
       <div className='flex-1 overflow-auto'>
-        {projects.length === 0 ? (
+        {!projects || projects.length === 0 ? (
           <div className='py-8 text-center'>
             <FolderIcon className='mx-auto mb-3 h-12 w-12 text-gray-400' />
             <p className='mb-2 text-sm text-gray-400'>No projects yet</p>
@@ -205,7 +207,7 @@ export default function ProjectsSidebar({
           </div>
         ) : (
           <div className='space-y-2'>
-            {projects.map((project) => (
+            {projects && projects.length > 0 && projects.map((project) => (
               <div
                 key={project.project_id}
                 className={`bg-background/80 rounded-lg border border-white/5 p-3 shadow-sm transition-all ${
@@ -318,7 +320,7 @@ export default function ProjectsSidebar({
       {/* Footer */}
       <div className='mt-4 border-t border-white/5 pt-3'>
         <div className='text-center text-xs text-gray-400'>
-          {projects.length} project{projects.length !== 1 ? 's' : ''} total
+          {projects?.length || 0} project{(projects?.length || 0) !== 1 ? 's' : ''} total
         </div>
       </div>
     </aside>

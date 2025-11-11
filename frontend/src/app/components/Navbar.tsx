@@ -1,6 +1,5 @@
 'use client';
 
-import { SearchCode } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
@@ -16,11 +15,17 @@ export default function Navbar() {
     <>
       <nav className='border-border bg-background fixed z-50 flex h-16 w-full items-center justify-center border px-4 text-white sm:px-6'>
         <section className='flex w-full max-w-5xl items-center justify-between xl:max-w-[1200px]'>
-          <Link href='/'>
-            <span className='text-primary font-manrope mr-2 text-xl font-bold tracking-tight sm:mr-4 sm:text-2xl'>
-              R<span className='text-sm sm:text-lg'>EP</span>
-              <SearchCode className='mx-[1px] ml-[2px] inline' size={16} />L
-              <span className='text-sm sm:text-lg'>ENS</span>
+          <Link href='/' className='flex items-center gap-2'>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src='/logo.svg'
+              alt='RepoLens Logo'
+              width={32}
+              height={32}
+              className='h-8 w-8'
+            />
+            <span className='font-manrope text-xl font-bold tracking-tight text-white sm:text-2xl'>
+              RepoLens
             </span>
             <span className='sr-only'>Go to repolens homepage</span>
           </Link>
