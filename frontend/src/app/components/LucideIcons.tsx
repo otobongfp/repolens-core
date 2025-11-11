@@ -685,3 +685,111 @@ export const GitBranchIcon: React.FC<IconProps> = ({
     <path d='M18 9a9 9 0 0 1-9 9' />
   </svg>
 );
+
+export const LightbulbIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-lightbulb ${className}`}
+  >
+    <path d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5' />
+    <path d='M9 18h6' />
+    <path d='M10 22h4' />
+  </svg>
+);
+
+export const RefreshCwIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-refresh-cw ${className}`}
+  >
+    <path d='M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8' />
+    <path d='M21 3v5h-5' />
+    <path d='M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16' />
+    <path d='M8 16H3v5' />
+  </svg>
+);
+
+export const UploadIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-upload ${className}`}
+  >
+    <path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' />
+    <polyline points='17,8 12,3 7,8' />
+    <line x1='12' x2='12' y1='3' y2='15' />
+  </svg>
+);
+
+export const SearchIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-search ${className}`}
+  >
+    <circle cx='11' cy='11' r='8' />
+    <path d='m21 21-4.35-4.35' />
+  </svg>
+);
+
+export const LoaderIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-loader-2 ${className}`}
+  >
+    <path d='M21 12a9 9 0 1 1-6.219-8.56' />
+  </svg>
+);

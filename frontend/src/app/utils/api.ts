@@ -4,11 +4,16 @@ import { repositoryCache } from './storage';
 // Helper function to get auth headers
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('access_token');
+  const useLocalBackend = JSON.parse(
+    localStorage.getItem('useLocalBackend') || 'true',
+  );
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
 
-  if (token) {
+  // Only add auth token if not in local mode
+  if (token && !useLocalBackend) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
@@ -49,8 +54,7 @@ export interface Project {
 export interface ProjectCreateRequest {
   name: string;
   description?: string;
-  source_config: SourceConfig;
-  tenant_id: string;
+  source_config?: SourceConfig;
 }
 
 export interface EnvironmentConfig {
@@ -149,7 +153,6 @@ export function useRepolensApi() {
     return await res.json();
   }
 
-  // AI endpoint - use dynamic apiBase for both local and cloud
   async function askRepoQuestion(graph: any, question: string) {
     const res = await fetch(`${apiBase}/ai/ask`, {
       method: 'POST',
@@ -195,7 +198,7 @@ export function useRepolensApi() {
   async function createProject(
     projectData: ProjectCreateRequest,
   ): Promise<Project> {
-    const res = await fetch(`${apiBase}/api/v1/projects`, {
+    const res = await fetch(`${apiBase}/api/projects`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(projectData),
@@ -214,7 +217,7 @@ export function useRepolensApi() {
     page_size: number;
   }> {
     const res = await fetch(
-      `${apiBase}/api/v1/projects?page=${page}&page_size=${pageSize}`,
+      `${apiBase}/api/projects?page=${page}&page_size=${pageSize}`,
       {
         headers: getAuthHeaders(),
       },
@@ -224,7 +227,7 @@ export function useRepolensApi() {
   }
 
   async function getProject(projectId: string): Promise<Project> {
-    const res = await fetch(`${apiBase}/api/v1/projects/${projectId}`, {
+    const res = await fetch(`${apiBase}/api/projects/${projectId}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Failed to get project');
@@ -235,7 +238,7 @@ export function useRepolensApi() {
     projectId: string,
     projectData: Partial<ProjectCreateRequest>,
   ): Promise<Project> {
-    const res = await fetch(`${apiBase}/api/v1/projects/${projectId}`, {
+    const res = await fetch(`${apiBase}/api/projects/${projectId}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(projectData),
@@ -245,7 +248,7 @@ export function useRepolensApi() {
   }
 
   async function deleteProject(projectId: string): Promise<void> {
-    const res = await fetch(`${apiBase}/api/v1/projects/${projectId}`, {
+    const res = await fetch(`${apiBase}/api/projects/${projectId}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -263,7 +266,7 @@ export function useRepolensApi() {
     started_at: string;
     progress: any;
   }> {
-    const res = await fetch(`${apiBase}/api/v1/projects/${projectId}/analyze`, {
+    const res = await fetch(`${apiBase}/api/projects/${projectId}/analyze`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -294,7 +297,7 @@ export function useRepolensApi() {
     completed_at?: string;
   }> {
     const res = await fetch(
-      `${apiBase}/api/v1/projects/${projectId}/analysis/${analysisId}/progress`,
+      `${apiBase}/api/projects/${projectId}/analysis/${analysisId}/progress`,
       {
         headers: getAuthHeaders(),
       },
@@ -308,7 +311,7 @@ export function useRepolensApi() {
     analysisId: string,
   ): Promise<any> {
     const res = await fetch(
-      `${apiBase}/api/v1/projects/${projectId}/analysis/${analysisId}/result`,
+      `${apiBase}/api/projects/${projectId}/analysis/${analysisId}/result`,
       {
         headers: getAuthHeaders(),
       },
@@ -320,7 +323,7 @@ export function useRepolensApi() {
   async function getProjectAnalyses(
     projectId: string,
   ): Promise<{ analyses: any[]; total: number }> {
-    const res = await fetch(`${apiBase}/api/v1/projects/${projectId}/analyses`);
+    const res = await fetch(`${apiBase}/api/projects/${projectId}/analyses`);
     if (!res.ok) throw new Error('Failed to get project analyses');
     return await res.json();
   }
@@ -361,6 +364,44 @@ export function useRepolensApi() {
     return await res.json();
   }
 
+  // Requirements API functions
+  async function extractRequirements(
+    documentContent: string,
+    projectId?: string,
+  ): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/extract`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ documentContent, projectId }),
+    });
+    if (!res.ok) throw new Error('Failed to extract requirements');
+    return await res.json();
+  }
+
+  async function matchRequirements(
+    requirementId: string,
+    projectId?: string,
+  ): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/match`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ requirementId, projectId }),
+    });
+    if (!res.ok) throw new Error('Failed to match requirements');
+    return await res.json();
+  }
+
+  async function getProjectRequirements(projectId: string): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/project/${projectId}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to get project requirements');
+    return await res.json();
+  }
+
   return {
     analyzeRepo,
     analyzeRepoFresh,
@@ -386,6 +427,10 @@ export function useRepolensApi() {
     updateSettings,
     testConnection,
     getEnvironmentInfo,
+    // Requirements
+    extractRequirements,
+    matchRequirements,
+    getProjectRequirements,
     apiBase,
   };
 }

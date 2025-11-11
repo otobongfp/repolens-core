@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+// Production Models
+
+model Repo {
+  id              String        @id @default(cuid())
+  provider        String        // "github", "gitlab", "url"
+  owner           String
+  name            String
+  fullName        String        // owner/name
+  url             String
+  defaultBranch   String?
+  latestSha       String?
+  visibility      String?       // "public"|"private"
+  installation    Installation? @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  installationId  String?
+  commits         Commit[]
+  fileBlobs       FileBlob[]
+  parseJobs       ParseJob[]
+  embeddings      Embedding[]
+  nodes           Node[]
+  symbols         Symbol[]
+  requirements    Requirement[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([provider, fullName])
+  @@index([installationId])
+}
+
+model Installation {
+  id            String   @id @default(cuid())
+  provider      String   // "github", "gitlab"
+  accountId     String
+  encryptedToken String
+  expiresAt     DateTime?
+  repos         Repo[]
+  createdAt     DateTime @default(now())
+
+  @@index([provider, accountId])
+}
+
+model Commit {
+  id        String   @id @default(cuid())
+  repoId    String
+  repo      Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  sha       String
+  message   String?
+  author    String?
+  timestamp DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([repoId, sha])
+  @@index([repoId, timestamp])
+}
+
+model FileBlob {
+  id         String    @id @default(cuid())
+  repoId     String
+  repo       Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  sha        String    // sha256 of content
+  path       String
+  size       Int
+  s3Key      String
+  parsedAt   DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([repoId, sha])
+  @@index([path])
+}
+
+model ParseJob {
+  id         String   @id @default(cuid())
+  repoId     String
+  repo       Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  sha        String
+  status     String   // queued, running, failed, done
+  payload    Json?
+  attempts   Int      @default(0)
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([repoId, status])
+  @@index([status, createdAt])
+}
+
+model Embedding {
+  id         String   @id @default(cuid())
+  repoId     String
+  repo       Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  filePath   String
+  nodePath   String?
+  chunkText  String
+  sourceText String   @db.Text
+  summary    String?  // Factual summary (max 40 words)
+  vectorId   String?  // External vector DB ID (Pinecone, Milvus, pgvector)
+  confidence String   @default("medium") // "high", "medium", "low"
+  s3AstKey   String?  // Reference to AST JSON in S3
+  nodeId     String?  // Reference to extracted Node
+  node       Node?    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([repoId, filePath])
+  @@index([confidence])
+  @@index([nodeId])
+}
+
+// Node extraction from AST
+
+model Node {
+  id          String       @id @default(cuid())
+  repoId      String
+  repo        Repo         @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  filePath    String
+  blobSha     String       // SHA of file content
+  nodePath    String       // e.g., "function.processPayment" or "class.PaymentProcessor"
+  nodeType    String       // "function", "class", "method", "export", "comment_block"
+  startLine   Int
+  endLine     Int
+  startColumn Int?
+  endColumn   Int?
+  text        String       @db.Text // Full node text
+  textS3Key   String?      // Large texts stored in S3
+  summary     String?
+  summaryConfidence String @default("medium") // "high", "medium", "low", "insufficient"
+  signature   String?      // Function/class signature
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  symbol      Symbol?      // One-to-one relationship
+  embeddings  Embedding[]
+  fromRefs    SymbolRef[]  @relation("SymbolRefFrom")
+  toRefs      SymbolRef[]  @relation("SymbolRefTo")
+  requirementMatches RequirementMatch[]
+
+  @@unique([repoId, filePath, nodePath, blobSha])
+  @@index([repoId, nodeType])
+  @@index([blobSha])
+}
+
+// Symbol table for deterministic lookups
+
+model Symbol {
+  id            String       @id @default(cuid())
+  repoId        String
+  repo          Repo         @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  filePath      String
+  blobSha       String
+  name          String       // Symbol name (function name, class name, etc.)
+  kind          String       // "function", "class", "method", "variable", "import"
+  signature     String?      // Full signature
+  nodeId        String       @unique
+  nodePath      String
+  node          Node         @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+
+  fromRefs      SymbolRef[]  @relation("SymbolRefFromSymbol")
+  toRefs        SymbolRef[]  @relation("SymbolRefToSymbol")
+
+  @@unique([repoId, filePath, name, blobSha])
+  @@index([repoId, name])
+  @@index([kind])
+}
+
+// Symbol references for call/usage graphs
+
+model SymbolRef {
+  id              String   @id @default(cuid())
+  repoId          String
+  fromSymbolId    String
+  toSymbolId      String
+  fromNodeId      String
+  toNodeId        String
+  kind            String   // "calls", "imports", "inherits", "references"
+  context         String?  // Additional context about the reference
+  fromSymbol      Symbol   @relation("SymbolRefFromSymbol", fields: [fromSymbolId], references: [id], onDelete: Cascade)
+  toSymbol        Symbol   @relation("SymbolRefToSymbol", fields: [toSymbolId], references: [id], onDelete: Cascade)
+  fromNode        Node     @relation("SymbolRefFrom", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode          Node     @relation("SymbolRefTo", fields: [toNodeId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@index([fromSymbolId])
+  @@index([toSymbolId])
+  @@index([repoId, kind])
+}
+
+// Requirement documents (PRDs, tickets)
+
+model Requirement {
+  id             String              @id @default(cuid())
+  projectId      String?             // Link to project (for project-level requirements)
+  project        Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repoId         String?             // Link to specific repo (optional)
+  repo           Repo?               @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  title          String
+  text           String              @db.Text
+  type           String              @default("feature") // "feature" | "suggestion"
+  status         String              @default("pending") // "pending" | "accepted" | "rejected" (for suggestions)
+  requirementId  String?             // External ID like "REQ-123"
+  vectorId       String?             // Vector embedding ID
+  confidence     String              @default("medium")
+  requirementMatches RequirementMatch[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([requirementId])
+  @@index([repoId])
+  @@index([projectId])
+  @@index([type, status])
+}
+
+// Links requirements to matched code nodes
+
+model RequirementMatch {
+  id              String       @id @default(cuid())
+  requirementId   String
+  requirement     Requirement  @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  nodeId          String
+  node            Node         @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  matchScore      Float
+  matchTypes      String[]     // ["symbol", "semantic", "structural", "verified"]
+  verificationTrace Json?      // Detailed verification results
+  confidence      String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([requirementId, nodeId])
+  @@index([requirementId])
+  @@index([matchScore])
+}
+
+
+// User & Tenant Models
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  username     String?      @unique
+  fullName     String?
+  avatarUrl    String?
+  passwordHash String?
+  role         UserRole     @default(USER)
+  isVerified   Boolean      @default(false)
+  tenants      TenantUser[]
+  projects     Project[]
+  analyses     Analysis[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Tenant {
+  id           String       @id @default(uuid())
+  name         String
+  slug         String       @unique
+  users        TenantUser[]
+  projects     Project[]
+  repositories Repository[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model TenantUser {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  role      UserRole @default(USER)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+}
+
+
+// Project Models
+
+model Project {
+  id           String       @id @default(uuid())
+  tenantId     String
+  ownerId      String
+  name         String
+  description  String?
+  status       ProjectStatus
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner        User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  repositories Repository[]
+  analyses     Analysis[]
+  requirements Requirement[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([tenantId])
+  @@index([ownerId])
+}
+
+model Repository {
+  id            String     @id @default(uuid())
+  projectId     String
+  tenantId      String
+  name          String
+  url           String?
+  path          String?
+  branch        String?
+  language      String?
+  status        RepoStatus @default(PENDING)
+  lastIndexed   DateTime?
+  lastCommitSha String?
+  s3ArchiveUrl  String?
+  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  analyses      Analysis[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([projectId])
+  @@index([tenantId])
+}
+
+model Analysis {
+  id           String     @id @default(uuid())
+  projectId    String
+  repositoryId String?
+  userId       String
+  type         String
+  status       String
+  data         Json?
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repository   Repository? @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([projectId])
+  @@index([userId])
+}
+
+// Enums
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum RepoStatus {
+  PENDING
+  INDEXING
+  INDEXED
+  FAILED
+}

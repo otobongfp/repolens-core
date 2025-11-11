@@ -1,0 +1,27 @@
+{
+  "name": "repolens-core-api",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "repolens-core/api/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cd repolens-core/api && npm run build"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cd repolens-core/api && npm run start:prod"
+      }
+    },
+    "start:dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cd repolens-core/api && npm run start:dev"
+      }
+    }
+  },
+  "tags": ["scope:core", "type:app"]
+}

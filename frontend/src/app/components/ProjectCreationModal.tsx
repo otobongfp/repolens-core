@@ -82,18 +82,9 @@ export default function ProjectCreationModal({
       setLoading(true);
       setError(null);
 
-      if (!user?.tenant_id) {
-        setError(
-          'User tenant information not available. Please try logging out and logging back in.',
-        );
-        console.error('User object:', user);
-        return;
-      }
-
       const projectData: ProjectCreateRequest = {
         name: formData.name,
         description: formData.description || undefined,
-        tenant_id: user.tenant_id,
         source_config: {
           type: sourceType,
           ...(sourceType === 'local' && { local_path: formData.local_path }),

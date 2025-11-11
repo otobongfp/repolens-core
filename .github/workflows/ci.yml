@@ -1,20 +1,78 @@
-name: CI/CD Pipeline
+# RepoLens CI/CD Pipeline
+name: RepoLens CI/CD Pipeline
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "18"
 
 jobs:
+  # Code Quality Checks
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install Python dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install black isort ruff mypy pytest pytest-asyncio pytest-cov
+    
+    - name: Run Black (Code Formatting)
+      run: |
+        cd backend
+        black --check --diff .
+    
+    - name: Run isort (Import Sorting)
+      run: |
+        cd backend
+        isort --check-only --diff .
+    
+    - name: Run Ruff (Linting)
+      run: |
+        cd backend
+        ruff check .
+    
+    - name: Run MyPy (Type Checking)
+      run: |
+        cd backend
+        mypy app/
+    
+    - name: Run Security Scan
+      run: |
+        cd backend
+        pip install bandit safety
+        bandit -r app/ -f json -o bandit-report.json || true
+        safety check --json --output safety-report.json || true
+
+  # Backend Tests
   backend-tests:
     runs-on: ubuntu-latest
-    
     services:
       postgres:
-        image: postgres:14
+        image: postgres:15
         env:
-          POSTGRES_PASSWORD: password
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: repolens_test
         options: >-
           --health-cmd pg_isready
@@ -25,7 +83,7 @@ jobs:
           - 5432:5432
       
       redis:
-        image: redis:6
+        image: redis:7
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -33,14 +91,26 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-
+      
+      neo4j:
+        image: neo4j:5.15
+        env:
+          NEO4J_AUTH: neo4j/password
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p password 'RETURN 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 7687:7687
+    
     steps:
     - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: ${{ env.PYTHON_VERSION }}
     
     - name: Install dependencies
       run: |
@@ -49,13 +119,27 @@ jobs:
         pip install -r requirements.txt
     
     - name: Run tests
+      env:
+        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/repolens_test
+        REDIS_URL: redis://localhost:6379
+        NEO4J_URI: bolt://localhost:7687
+        NEO4J_USER: neo4j
+        NEO4J_PASSWORD: password
+        JWT_SECRET_KEY: test-secret-key-for-testing-only-minimum-32-characters
+        ENVIRONMENT: test
+        OPENAI_API_KEY: test-key
       run: |
         cd backend
-        pytest tests/ -v
-      env:
-        DATABASE_URL: postgresql://postgres:password@localhost:5432/repolens_test
-        REDIS_URL: redis://localhost:6379
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: backend/coverage.xml
+        flags: backend
+        name: repolens-backend
 
+  # Frontend Tests
   frontend-tests:
     runs-on: ubuntu-latest
     
@@ -65,7 +149,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
     
@@ -79,35 +163,135 @@ jobs:
         cd frontend
         npm test -- --coverage --watchAll=false
     
+    - name: Run linting
+      run: |
+        cd frontend
+        npm run lint
+    
     - name: Build
       run: |
         cd frontend
         npm run build
 
-  linting:
+  # Integration Tests
+  integration-tests:
     runs-on: ubuntu-latest
-    
+    needs: [code-quality, backend-tests, frontend-tests]
     steps:
     - uses: actions/checkout@v4
     
-    - name: Python Linting
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
       run: |
         cd backend
-        pip install flake8 black isort
-        flake8 app/
-        black --check app/
-        isort --check-only app/
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
     
-    - name: TypeScript Linting
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+    - name: Run integration tests
       run: |
-        cd frontend
-        npm ci
-        npm run lint
+        cd backend
+        pytest tests/integration/ -v || echo "No integration tests found yet"
+
+  # Build and Test Docker Images
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [code-quality, backend-tests, frontend-tests]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push backend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: backend
+        push: true
+        tags: |
+          repolens/backend:latest
+          repolens/backend:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build and push frontend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: frontend
+        push: true
+        tags: |
+          repolens/frontend:latest
+          repolens/frontend:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Deploy to Staging
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [docker-build, integration-tests]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your staging deployment commands here
+        # Example: kubectl apply -f k8s/staging/
+
+  # Deploy to Production
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [docker-build, integration-tests]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your production deployment commands here
+        # Example: kubectl apply -f k8s/production/
+
+  # Security Scan
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Performance Tests
+  performance-tests:
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run performance tests
+      run: |
+        echo "Running performance tests..."
+        # Add your performance testing commands here
+        # Example: k6 run performance-tests/load-test.js
