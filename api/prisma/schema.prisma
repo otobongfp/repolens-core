@@ -3,49 +3,55 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Direct connection for migrations (bypasses pooler)
 }
 
+// ============================================
+// GIT PROVIDER & INSTALLATION
+// ============================================
 
-// Production Models
+model Installation {
+  id             String    @id @default(cuid())
+  provider       String // "github", "gitlab"
+  accountId      String
+  encryptedToken String
+  expiresAt      DateTime?
+  repos          Repo[]
+  createdAt      DateTime  @default(now())
+
+  @@index([provider, accountId])
+}
+
+// ============================================
+// REPOSITORY & VERSION CONTROL
+// ============================================
 
 model Repo {
-  id              String        @id @default(cuid())
-  provider        String        // "github", "gitlab", "url"
-  owner           String
-  name            String
-  fullName        String        // owner/name
-  url             String
-  defaultBranch   String?
-  latestSha       String?
-  visibility      String?       // "public"|"private"
-  installation    Installation? @relation(fields: [installationId], references: [id], onDelete: Cascade)
-  installationId  String?
-  commits         Commit[]
-  fileBlobs       FileBlob[]
-  parseJobs       ParseJob[]
-  embeddings      Embedding[]
-  nodes           Node[]
-  symbols         Symbol[]
-  requirements    Requirement[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  provider       String // "github", "gitlab", "url"
+  owner          String
+  name           String
+  fullName       String // owner/name
+  url            String
+  defaultBranch  String?
+  latestSha      String?
+  visibility     String? // "public"|"private"
+  installation   Installation? @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  installationId String?
+  commits        Commit[]
+  fileBlobs      FileBlob[]
+  parseJobs      ParseJob[]
+  embeddings     Embedding[]
+  nodes          Node[]
+  symbols        Symbol[]
+  requirements   Requirement[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([provider, fullName])
   @@index([installationId])
-}
-
-model Installation {
-  id            String   @id @default(cuid())
-  provider      String   // "github", "gitlab"
-  accountId     String
-  encryptedToken String
-  expiresAt     DateTime?
-  repos         Repo[]
-  createdAt     DateTime @default(now())
-
-  @@index([provider, accountId])
 }
 
 model Commit {
@@ -53,7 +59,7 @@ model Commit {
   repoId    String
   repo      Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
   sha       String
-  message   String?
+  message   String?  @db.Text
   author    String?
   timestamp DateTime
   createdAt DateTime @default(now())
@@ -63,155 +69,187 @@ model Commit {
 }
 
 model FileBlob {
-  id         String    @id @default(cuid())
-  repoId     String
-  repo       Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  sha        String    // sha256 of content
-  path       String
-  size       Int
-  s3Key      String
-  parsedAt   DateTime?
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  repoId    String
+  repo      Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  sha       String // sha256 of content
+  path      String
+  size      Int
+  s3Key     String
+  parsedAt  DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([repoId, sha])
   @@index([path])
 }
 
 model ParseJob {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   repoId     String
-  repo       Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repo       Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
   sha        String
-  status     String   // queued, running, failed, done
+  status     String // "queued", "running", "failed", "done"
   payload    Json?
-  attempts   Int      @default(0)
-  error      String?
+  attempts   Int       @default(0)
+  error      String?   @db.Text
   startedAt  DateTime?
   finishedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([repoId, status])
   @@index([status, createdAt])
 }
 
-model Embedding {
-  id         String   @id @default(cuid())
-  repoId     String
-  repo       Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  filePath   String
-  nodePath   String?
-  chunkText  String
-  sourceText String   @db.Text
-  summary    String?  // Factual summary (max 40 words)
-  vectorId   String?  // External vector DB ID (Pinecone, Milvus, pgvector)
-  confidence String   @default("medium") // "high", "medium", "low"
-  s3AstKey   String?  // Reference to AST JSON in S3
-  nodeId     String?  // Reference to extracted Node
-  node       Node?    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-
-  @@index([repoId, filePath])
-  @@index([confidence])
-  @@index([nodeId])
-}
-
-// Node extraction from AST
+// ============================================
+// AST PARSING & CODE STRUCTURE
+// ============================================
 
 model Node {
-  id          String       @id @default(cuid())
-  repoId      String
-  repo        Repo         @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  filePath    String
-  blobSha     String       // SHA of file content
-  nodePath    String       // e.g., "function.processPayment" or "class.PaymentProcessor"
-  nodeType    String       // "function", "class", "method", "export", "comment_block"
-  startLine   Int
-  endLine     Int
-  startColumn Int?
-  endColumn   Int?
-  text        String       @db.Text // Full node text
-  textS3Key   String?      // Large texts stored in S3
-  summary     String?
-  summaryConfidence String @default("medium") // "high", "medium", "low", "insufficient"
-  signature   String?      // Function/class signature
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                String   @id @default(cuid())
+  repoId            String
+  repo              Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  filePath          String
+  blobSha           String // SHA of file content
+  nodePath          String // e.g., "function.processPayment" or "class.PaymentProcessor"
+  nodeType          String // "function", "class", "method", "export", "comment_block"
+  startLine         Int
+  endLine           Int
+  startColumn       Int?
+  endColumn         Int?
+  text              String   @db.Text // Full node text
+  textS3Key         String? // Large texts stored in S3
+  summary           String?
+  summaryConfidence String   @default("medium") // "high", "medium", "low", "insufficient"
+  signature         String? // Function/class signature
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  symbol      Symbol?      // One-to-one relationship
-  embeddings  Embedding[]
-  fromRefs    SymbolRef[]  @relation("SymbolRefFrom")
-  toRefs      SymbolRef[]  @relation("SymbolRefTo")
+  symbol             Symbol? // One-to-one relationship
+  embeddings         Embedding[]
+  fromRefs           SymbolRef[]        @relation("SymbolRefFrom")
+  toRefs             SymbolRef[]        @relation("SymbolRefTo")
   requirementMatches RequirementMatch[]
+  citations          Citation[]
 
   @@unique([repoId, filePath, nodePath, blobSha])
   @@index([repoId, nodeType])
   @@index([blobSha])
 }
 
-// Symbol table for deterministic lookups
-
 model Symbol {
-  id            String       @id @default(cuid())
-  repoId        String
-  repo          Repo         @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  filePath      String
-  blobSha       String
-  name          String       // Symbol name (function name, class name, etc.)
-  kind          String       // "function", "class", "method", "variable", "import"
-  signature     String?      // Full signature
-  nodeId        String       @unique
-  nodePath      String
-  node          Node         @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-  createdAt     DateTime     @default(now())
+  id        String   @id @default(cuid())
+  repoId    String
+  repo      Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  filePath  String
+  blobSha   String
+  name      String // Symbol name (function name, class name, etc.)
+  kind      String // "function", "class", "method", "variable", "import"
+  signature String? // Full signature
+  nodeId    String   @unique
+  nodePath  String
+  node      Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
-  fromRefs      SymbolRef[]  @relation("SymbolRefFromSymbol")
-  toRefs        SymbolRef[]  @relation("SymbolRefToSymbol")
+  fromRefs SymbolRef[] @relation("SymbolRefFromSymbol")
+  toRefs   SymbolRef[] @relation("SymbolRefToSymbol")
 
   @@unique([repoId, filePath, name, blobSha])
   @@index([repoId, name])
   @@index([kind])
 }
 
-// Symbol references for call/usage graphs
-
 model SymbolRef {
-  id              String   @id @default(cuid())
-  repoId          String
-  fromSymbolId    String
-  toSymbolId      String
-  fromNodeId      String
-  toNodeId        String
-  kind            String   // "calls", "imports", "inherits", "references"
-  context         String?  // Additional context about the reference
-  fromSymbol      Symbol   @relation("SymbolRefFromSymbol", fields: [fromSymbolId], references: [id], onDelete: Cascade)
-  toSymbol        Symbol   @relation("SymbolRefToSymbol", fields: [toSymbolId], references: [id], onDelete: Cascade)
-  fromNode        Node     @relation("SymbolRefFrom", fields: [fromNodeId], references: [id], onDelete: Cascade)
-  toNode          Node     @relation("SymbolRefTo", fields: [toNodeId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
+  id           String   @id @default(cuid())
+  repoId       String
+  fromSymbolId String
+  toSymbolId   String
+  fromNodeId   String
+  toNodeId     String
+  kind         String // "calls", "imports", "inherits", "references"
+  context      String?  @db.Text // Additional context about the reference
+  fromSymbol   Symbol   @relation("SymbolRefFromSymbol", fields: [fromSymbolId], references: [id], onDelete: Cascade)
+  toSymbol     Symbol   @relation("SymbolRefToSymbol", fields: [toSymbolId], references: [id], onDelete: Cascade)
+  fromNode     Node     @relation("SymbolRefFrom", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode       Node     @relation("SymbolRefTo", fields: [toNodeId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
 
   @@index([fromSymbolId])
   @@index([toSymbolId])
   @@index([repoId, kind])
 }
 
-// Requirement documents (PRDs, tickets)
+// ============================================
+// EMBEDDINGS & VECTOR SEARCH
+// ============================================
+
+model Embedding {
+  id         String     @id @default(cuid())
+  repoId     String
+  repo       Repo       @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  filePath   String
+  nodePath   String?
+  chunkText  String
+  sourceText String     @db.Text
+  summary    String? // Factual summary (max 40 words)
+  vectorId   String? // External vector DB ID (Pinecone, Milvus)
+  // Note: vector column is added via migration (pgvector extension)
+  // Use PrismaService.storeVector() to store vectors
+  confidence String     @default("medium") // "high", "medium", "low"
+  s3AstKey   String? // Reference to AST JSON in S3
+  nodeId     String? // Reference to extracted Node
+  node       Node?      @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  citations  Citation[]
+  createdAt  DateTime   @default(now())
+
+  @@index([repoId, filePath])
+  @@index([confidence])
+  @@index([nodeId])
+}
+
+// ============================================
+// REQUIREMENTS ENGINEERING
+// ============================================
+
+model Project {
+  id                String             @id @default(uuid())
+  tenantId          String
+  ownerId           String
+  name              String
+  description       String?            @db.Text
+  status            ProjectStatus
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner             User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  repositories      Repository[]
+  analyses          Analysis[]
+  requirements      Requirement[]
+  complianceReports ComplianceReport[]
+  gapAnalyses       GapAnalysis[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([tenantId])
+  @@index([ownerId])
+}
 
 model Requirement {
-  id             String              @id @default(cuid())
-  projectId      String?             // Link to project (for project-level requirements)
-  project        Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  repoId         String?             // Link to specific repo (optional)
-  repo           Repo?               @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  title          String
-  text           String              @db.Text
-  type           String              @default("feature") // "feature" | "suggestion"
-  status         String              @default("pending") // "pending" | "accepted" | "rejected" (for suggestions)
-  requirementId  String?             // External ID like "REQ-123"
-  vectorId       String?             // Vector embedding ID
-  confidence     String              @default("medium")
+  id                 String               @id @default(cuid())
+  projectId          String? // Link to project (for project-level requirements)
+  project            Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repoId             String? // Link to specific repo (optional)
+  repo               Repo?                @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  title              String
+  text               String               @db.Text
+  type               String               @default("feature") // "feature" | "suggestion"
+  status             String               @default("pending") // "pending" | "accepted" | "rejected" (for suggestions)
+  requirementId      String? // External ID like "REQ-123"
+  vectorId           String? // Vector embedding ID
+  confidence         String               @default("medium")
   requirementMatches RequirementMatch[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  versions           RequirementVersion[]
+  driftDetections    DriftDetection[]
+  gapAnalyses        GapAnalysis[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   @@index([requirementId])
   @@index([repoId])
@@ -219,49 +257,118 @@ model Requirement {
   @@index([type, status])
 }
 
-// Links requirements to matched code nodes
-
 model RequirementMatch {
-  id              String       @id @default(cuid())
-  requirementId   String
-  requirement     Requirement  @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  nodeId          String
-  node            Node         @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-  matchScore      Float
-  matchTypes      String[]     // ["symbol", "semantic", "structural", "verified"]
-  verificationTrace Json?      // Detailed verification results
-  confidence      String
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id                String      @id @default(cuid())
+  requirementId     String
+  requirement       Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  nodeId            String
+  node              Node        @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  matchScore        Float
+  matchTypes        String[] // ["symbol", "semantic", "structural", "verified"]
+  verificationTrace Json? // Detailed verification results
+  confidence        String
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   @@unique([requirementId, nodeId])
   @@index([requirementId])
   @@index([matchScore])
 }
 
+model RequirementVersion {
+  id            String      @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  title         String
+  text          String      @db.Text
+  changeSummary String?     @db.Text
+  changedBy     String? // User ID
+  changedByUser User?       @relation(fields: [changedBy], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
 
-// User & Tenant Models
+  @@unique([requirementId, versionNumber])
+  @@index([requirementId])
+}
+
+model ComplianceReport {
+  id                     String   @id @default(cuid())
+  projectId              String
+  project                Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reportType             String // "standards", "coverage", "traceability"
+  overallCompliance      Float
+  requirementsCoverage   Float
+  traceabilityComplete   Boolean
+  allRequirementsTracked Boolean
+  metrics                Json
+  recommendations        Json?
+  generatedAt            DateTime @default(now())
+
+  @@index([projectId])
+  @@index([generatedAt])
+}
+
+model DriftDetection {
+  id            String      @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  severity      String // "critical", "high", "medium", "low"
+  oldScore      Float
+  newScore      Float
+  detectedAt    DateTime    @default(now())
+  resolvedAt    DateTime?
+
+  @@index([requirementId])
+  @@index([severity, resolvedAt])
+}
+
+model GapAnalysis {
+  id             String       @id @default(cuid())
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requirementId  String?
+  requirement    Requirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  gapType        String // "missing_implementation", "incomplete", "untracked"
+  priority       String // "high", "medium", "low"
+  effortEstimate String // "small", "medium", "large"
+  suggestions    String?      @db.Text
+  createdAt      DateTime     @default(now())
+
+  @@index([projectId])
+  @@index([requirementId])
+  @@index([priority])
+}
+
+// ============================================
+// MULTI-TENANCY & USER MANAGEMENT
+// ============================================
 
 model User {
-  id           String       @id @default(uuid())
-  email        String       @unique
-  username     String?      @unique
-  fullName     String?
-  avatarUrl    String?
-  passwordHash String?
-  role         UserRole     @default(USER)
-  isVerified   Boolean      @default(false)
-  tenants      TenantUser[]
-  projects     Project[]
-  analyses     Analysis[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                  String               @id @default(uuid())
+  email               String               @unique
+  username            String?              @unique
+  fullName            String?
+  avatarUrl           String?
+  passwordHash        String?
+  role                UserRole             @default(USER)
+  isVerified          Boolean              @default(false)
+  verificationLevel   Int                  @default(0)
+  lastLogin           DateTime?
+  deletedAt           DateTime? // Soft delete
+  tenants             TenantUser[]
+  projects            Project[]
+  analyses            Analysis[]
+  requirementVersions RequirementVersion[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 }
 
 model Tenant {
   id           String       @id @default(uuid())
   name         String
-  slug         String       @unique
+  slug         String       @unique // Used in URLs like /tenant-slug
+  logoUrl      String?
+  themeColor   String?
   users        TenantUser[]
   projects     Project[]
   repositories Repository[]
@@ -282,27 +389,9 @@ model TenantUser {
   @@unique([tenantId, userId])
 }
 
-
-// Project Models
-
-model Project {
-  id           String       @id @default(uuid())
-  tenantId     String
-  ownerId      String
-  name         String
-  description  String?
-  status       ProjectStatus
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner        User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  repositories Repository[]
-  analyses     Analysis[]
-  requirements Requirement[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  @@index([tenantId])
-  @@index([ownerId])
-}
+// ============================================
+// REPOSITORY MANAGEMENT (Tenant-scoped)
+// ============================================
 
 model Repository {
   id            String     @id @default(uuid())
@@ -327,25 +416,63 @@ model Repository {
   @@index([tenantId])
 }
 
+// ============================================
+// ANALYSIS & AI INTERACTIONS
+// ============================================
+
 model Analysis {
-  id           String     @id @default(uuid())
+  id           String      @id @default(uuid())
   projectId    String
   repositoryId String?
   userId       String
   type         String
   status       String
   data         Json?
-  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   repository   Repository? @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([projectId])
   @@index([userId])
 }
 
-// Enums
+model Citation {
+  id              String     @id @default(cuid())
+  queryId         String? // Reference to search/query
+  embeddingId     String?
+  embedding       Embedding? @relation(fields: [embeddingId], references: [id], onDelete: Cascade)
+  nodeId          String?
+  node            Node?      @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  filePath        String
+  startLine       Int
+  endLine         Int
+  codeSnippet     String     @db.Text
+  similarityScore Float?
+  createdAt       DateTime   @default(now())
+
+  @@index([queryId])
+  @@index([embeddingId])
+  @@index([nodeId])
+}
+
+model HallucinationDetection {
+  id              String   @id @default(cuid())
+  query           String   @db.Text
+  response        String   @db.Text
+  confidenceScore Float
+  detectedIssues  Json?
+  verified        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([verified])
+  @@index([createdAt])
+}
+
+// ============================================
+// ENUMS
+// ============================================
 
 enum UserRole {
   USER

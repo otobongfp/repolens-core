@@ -119,8 +119,8 @@ export default function ProjectCreationModal({
   if (!isOpen) return null;
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm'>
-      <div className='bg-card border-border mx-4 max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-lg border shadow-xl'>
+    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm sm:p-6'>
+      <div className='bg-card border-border max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-lg border shadow-xl'>
         {/* Header */}
         <div className='border-border border-b p-6'>
           <div className='flex items-center justify-between'>
@@ -145,7 +145,7 @@ export default function ProjectCreationModal({
         </div>
 
         {/* Content */}
-        <div className='max-h-[60vh] overflow-y-auto p-6'>
+        <div className='max-h-[60vh] overflow-y-auto p-4 sm:p-6'>
           {error && (
             <div className='mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3'>
               <AlertCircleIcon className='h-4 w-4 text-red-500' />
@@ -167,7 +167,7 @@ export default function ProjectCreationModal({
                     setFormData({ ...formData, name: e.target.value })
                   }
                   placeholder='Enter project name'
-                  className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none'
+                  className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2.5 text-base focus:ring-2 focus:outline-none sm:text-sm'
                 />
               </div>
               <div>
@@ -181,7 +181,7 @@ export default function ProjectCreationModal({
                   }
                   placeholder='Enter project description (optional)'
                   rows={3}
-                  className='border-border bg-background text-card-foreground focus:ring-primary w-full resize-none rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none'
+                  className='border-border bg-background text-card-foreground focus:ring-primary w-full resize-none rounded-lg border px-3 py-2.5 text-base focus:ring-2 focus:outline-none sm:text-sm'
                 />
               </div>
             </div>
@@ -194,7 +194,7 @@ export default function ProjectCreationModal({
                 <label className='text-card-foreground mb-3 block text-sm font-medium'>
                   Source Type
                 </label>
-                <div className='grid grid-cols-2 gap-3'>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                   {[
                     {
                       type: 'local',
@@ -212,15 +212,17 @@ export default function ProjectCreationModal({
                     <button
                       key={type}
                       onClick={() => setSourceType(type as SourceType)}
-                      className={`rounded-lg border p-4 transition-all ${
+                      className={`flex min-h-[80px] items-center justify-center gap-3 rounded-lg border p-4 transition-all sm:flex-col sm:min-h-[100px] ${
                         sourceType === type
                           ? 'border-primary bg-primary/5 text-primary'
                           : 'border-border hover:border-primary/50 text-muted-foreground'
                       }`}
                     >
-                      <Icon className='mx-auto mb-2 h-6 w-6' />
-                      <div className='text-sm font-medium'>{label}</div>
-                      <div className='text-xs opacity-75'>{desc}</div>
+                      <Icon className='h-6 w-6 flex-shrink-0' />
+                      <div className='text-left sm:text-center'>
+                        <div className='text-sm font-medium'>{label}</div>
+                        <div className='text-xs opacity-75'>{desc}</div>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -239,7 +241,7 @@ export default function ProjectCreationModal({
                       setFormData({ ...formData, local_path: e.target.value })
                     }
                     placeholder='/path/to/your/code'
-                    className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none'
+                    className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2.5 text-base focus:ring-2 focus:outline-none sm:text-sm'
                   />
                   <p className='text-muted-foreground mt-1 text-xs'>
                     Absolute path to your local code directory
@@ -260,7 +262,7 @@ export default function ProjectCreationModal({
                       setFormData({ ...formData, github_url: e.target.value })
                     }
                     placeholder='https://github.com/username/repository'
-                    className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none'
+                    className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2.5 text-base focus:ring-2 focus:outline-none sm:text-sm'
                   />
                   <div className='mt-3'>
                     <label className='text-card-foreground mb-2 block text-sm font-medium'>
@@ -273,7 +275,7 @@ export default function ProjectCreationModal({
                         setFormData({ ...formData, branch: e.target.value })
                       }
                       placeholder='main'
-                      className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none'
+                      className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2.5 text-base focus:ring-2 focus:outline-none sm:text-sm'
                     />
                   </div>
                   <p className='text-muted-foreground mt-1 text-xs'>
@@ -332,20 +334,20 @@ export default function ProjectCreationModal({
         </div>
 
         {/* Footer */}
-        <div className='border-border border-t p-6'>
-          <div className='flex justify-between'>
+        <div className='border-border border-t p-4 sm:p-6'>
+          <div className='flex flex-col gap-3 sm:flex-row sm:justify-between'>
             <button
               onClick={handleBack}
               disabled={step === 1}
-              className='text-muted-foreground hover:text-card-foreground px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50'
+              className='text-muted-foreground hover:text-card-foreground flex min-h-[44px] items-center justify-center px-4 py-2.5 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0'
             >
               Back
             </button>
 
-            <div className='flex gap-3'>
+            <div className='flex flex-col gap-2 sm:flex-row sm:gap-3'>
               <button
                 onClick={handleClose}
-                className='text-muted-foreground hover:text-card-foreground px-4 py-2'
+                className='text-muted-foreground hover:text-card-foreground flex min-h-[44px] items-center justify-center px-4 py-2.5 sm:min-h-0'
               >
                 Cancel
               </button>
@@ -354,7 +356,7 @@ export default function ProjectCreationModal({
                 <button
                   onClick={handleNext}
                   disabled={step === 2 && !validateStep2()}
-                  className='bg-primary hover:bg-primary/80 text-primary-foreground rounded-lg px-4 py-2 font-medium transition disabled:cursor-not-allowed disabled:opacity-50'
+                  className='bg-primary hover:bg-primary/80 text-primary-foreground flex min-h-[44px] items-center justify-center rounded-lg px-4 py-2.5 font-medium transition disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0'
                 >
                   Next
                 </button>
@@ -362,7 +364,7 @@ export default function ProjectCreationModal({
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  className='bg-primary hover:bg-primary/80 text-primary-foreground flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition disabled:cursor-not-allowed disabled:opacity-50'
+                  className='bg-primary hover:bg-primary/80 text-primary-foreground flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium transition disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0'
                 >
                   {loading ? (
                     <>

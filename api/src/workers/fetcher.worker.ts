@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../common/database/prisma.service';
 import { S3Service } from '../common/s3/s3.service';
 import { QueueService } from '../common/queue/queue.service';
+import { GitHubAuthService } from '../common/github/github-auth.service';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as crypto from 'crypto';
@@ -16,11 +17,13 @@ export class FetcherWorker {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3: S3Service,
-    private readonly queue: QueueService
+    private readonly queue: QueueService,
+    private readonly githubAuth: GitHubAuthService
   ) {}
 
   async process(job: any) {
     const { provider, repoFull, event, payload } = job.data;
+    const startTime = Date.now();
 
     this.logger.log(`Processing ${event} event for ${repoFull}`);
 
@@ -30,6 +33,9 @@ export class FetcherWorker {
       } else if (event === 'pull_request') {
         await this.handlePullRequestEvent(provider, repoFull, payload);
       }
+      
+      const duration = (Date.now() - startTime) / 1000;
+      this.logger.debug(`Processed ${event} in ${duration}s`);
     } catch (error) {
       this.logger.error(`Failed to process ${event}:`, error);
       throw error;
@@ -65,13 +71,16 @@ export class FetcherWorker {
   }
 
   private async handlePullRequestEvent(provider: string, repoFull: string, payload: any) {
-    // TODO: Handle PR events (maybe add PR branches to index)
     this.logger.log(`PR event received for ${repoFull}`);
   }
 
   private async fetchChangedFilesGitHub(repo: any, oldSha: string, newSha: string) {
-    // TODO: Decrypt token from installation
-    const token = process.env.GITHUB_TOKEN; // Temporary
+    // Get token from installation or fallback to env
+    const token = await this.githubAuth.getToken(repo.id);
+
+    if (!token) {
+      throw new Error(`No GitHub token available for repo ${repo.id}`);
+    }
 
     try {
       // Use GitHub API to compare commits
@@ -142,13 +151,10 @@ export class FetcherWorker {
   }
 
   private async fetchWithGit(repo: any, sha: string) {
-    // Fallback: git clone method
     this.logger.log(`Fetching ${repo.fullName} with git`);
-    // Use existing clone logic from repositories.service.ts
   }
 
   private isBinary(file: any): boolean {
-    // Simple check - in production use magic bytes
     const binaryExtensions = ['.exe', '.dll', '.so', '.dylib', '.bin', '.jpg', '.png', '.pdf'];
     return binaryExtensions.some((ext) => file.filename.endsWith(ext));
   }

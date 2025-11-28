@@ -793,3 +793,176 @@ export const LoaderIcon: React.FC<IconProps> = ({
     <path d='M21 12a9 9 0 1 1-6.219-8.56' />
   </svg>
 );
+
+export const FileIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-file ${className}`}
+  >
+    <path d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z' />
+    <polyline points='14,2 14,8 20,8' />
+  </svg>
+);
+
+export const DownloadIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-download ${className}`}
+  >
+    <path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' />
+    <polyline points='7,10 12,15 17,10' />
+    <line x1='12' x2='12' y1='15' y2='3' />
+  </svg>
+);
+
+export const HistoryIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-history ${className}`}
+  >
+    <path d='M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8' />
+    <path d='M21 3v5h-5' />
+    <path d='M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16' />
+    <path d='M8 16H3v5' />
+  </svg>
+);
+
+export const TrendingDownIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-trending-down ${className}`}
+  >
+    <polyline points='22,17 13.5,8.5 8.5,13.5 2,7' />
+    <polyline points='16,17 22,17 22,11' />
+  </svg>
+);
+
+export const TargetIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-target ${className}`}
+  >
+    <circle cx='12' cy='12' r='10' />
+    <circle cx='12' cy='12' r='6' />
+    <circle cx='12' cy='12' r='2' />
+  </svg>
+);
+
+export const ShieldCheckIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-shield-check ${className}`}
+  >
+    <path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' />
+    <polyline points='9,12 11,14 15,10' />
+  </svg>
+);
+
+export const EyeIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-eye ${className}`}
+  >
+    <path d='M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z' />
+    <circle cx='12' cy='12' r='3' />
+  </svg>
+);
+
+export const AlertTriangleIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+}) => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='2'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    className={`lucide lucide-alert-triangle ${className}`}
+  >
+    <path d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z' />
+    <line x1='12' x2='12' y1='9' y2='13' />
+    <line x1='12' x2='12.01' y1='17' y2='17' />
+  </svg>
+);

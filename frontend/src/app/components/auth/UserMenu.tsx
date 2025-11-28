@@ -21,22 +21,23 @@ export default function UserMenu() {
     <div className='relative'>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className='text-foreground hover:text-muted-foreground flex items-center space-x-3 transition-colors'
+        className='text-foreground hover:text-muted-foreground flex h-9 items-center gap-2 transition-colors sm:h-10 sm:gap-3'
+        aria-label='User menu'
       >
         {user.avatar_url ? (
           <img
             src={user.avatar_url}
             alt={user.full_name || user.email}
-            className='h-8 w-8 rounded-full'
+            className='h-8 w-8 rounded-full sm:h-9 sm:w-9'
           />
         ) : (
-          <div className='bg-primary flex h-8 w-8 items-center justify-center rounded-full'>
+          <div className='bg-primary flex h-8 w-8 items-center justify-center rounded-full sm:h-9 sm:w-9'>
             <span className='text-primary-foreground text-sm font-semibold'>
               {(user.full_name || user.email).charAt(0).toUpperCase()}
             </span>
           </div>
         )}
-        <div className='text-left'>
+        <div className='hidden text-left sm:block'>
           <div className='text-sm font-medium'>
             {user.full_name || user.email}
           </div>

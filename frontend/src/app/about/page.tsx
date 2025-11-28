@@ -43,34 +43,19 @@ export default function AboutPage() {
           </div>
 
           <Reveal delay={0.2}>
-            <p className='text-muted-foreground text-left text-base sm:text-lg'>
-              RepoLens is an Opensource AI-powered requirements engineering and
-              codebase analysis platform that analyzes repositories to provide
-              clear, actionable insights for developers, product leaders and
-              teams. By combining advanced code analysis, requirement mapping,
-              and intelligent project management, RepoLens helps developers
-              understand complex codebases, identify technical debt, and ensure
-              code quality across projects.
+            <p className='text-muted-foreground text-left text-base sm:text-lg leading-relaxed'>
+              RepoLens is the <strong>open-source, AI-powered requirements engineering and codebase analysis platform</strong> that ensures what you build perfectly aligns with what you need. It analyzes repositories to provide clear, actionable insights for developers, product leaders, and teams. By combining precise code analysis with intelligent requirement matching, RepoLens helps teams achieve full requirements traceability, real-time completeness tracking, and compliance across all projects.
             </p>
           </Reveal>
 
           <Reveal delay={0.3}>
-            <p className='text-muted-foreground mt-4 text-left text-base sm:text-lg'>
-              <strong>Here's how it works:</strong> Imagine you're joining a new
-              project with thousands of files. Instead of spending weeks
-              manually exploring the codebase, you simply upload your
-              requirements document and connect your GitHub repository to
-              RepoLens. Within minutes, you get a comprehensive analysis showing
-              how each requirement maps to specific code modules, identify
-              potential gaps between what's specified and what's implemented,
-              and receive AI-powered insights about code quality, dependencies,
-              and areas that need attention. You can further estimate timelines,
-              security risks, etc
+            <p className='text-muted-foreground mt-4 text-left text-base sm:text-lg leading-relaxed'>
+              <strong>Here's how it works:</strong> Stop spending weeks manually exploring complex codebases. Simply connect your repository and upload your requirements document. Within minutes, RepoLens instantly generates an auditable traceability matrix showing how every requirement maps to the exact code components, down to the function level. You can immediately identify implementation gaps, detect specification drift as code changes, and leverage AI to ask complex questions, receiving precise answers with direct code citations.
             </p>
           </Reveal>
         </div>
 
-        {/* Mission Section */}
+        {/* Vision Section */}
         <div className='mb-16'>
           <Reveal>
             <div className='border-border bg-card rounded-2xl border p-8 shadow-lg'>
@@ -83,17 +68,115 @@ export default function AboutPage() {
                 </h2>
               </div>
               <p className='text-muted-foreground text-lg leading-relaxed'>
-                To bridge the gap between requirements and implementation,
-                making every codebase instantly understandable and maintainable.
-                RepoLens empowers developers, product leaders, and teams to make
-                informed decisions through AI-powered analysis, ensuring that
-                what's built aligns with what's needed.
+                To bridge the gap between requirements and implementation, making every codebase instantly understandable and maintainable. RepoLens empowers developers, product leaders, and teams to make informed decisions through AI-powered analysis, ensuring that what's built aligns with what's needed.
               </p>
             </div>
           </Reveal>
         </div>
 
-        {/* Features Grid */}
+        {/* Who Can Use Section */}
+        <div className='mb-16'>
+          <Reveal>
+            <h2 className='text-foreground mb-8 text-center text-2xl font-bold sm:text-3xl'>
+              Who Can Use RepoLens & Why?
+            </h2>
+          </Reveal>
+
+          {/* Desktop: Table View */}
+          <div className='hidden overflow-x-auto md:block'>
+            <table className='border-border bg-card w-full rounded-xl border shadow-sm'>
+              <thead>
+                <tr className='border-border border-b'>
+                  <th className='text-card-foreground px-6 py-4 text-left text-sm font-semibold sm:text-base'>
+                    User Role
+                  </th>
+                  <th className='text-card-foreground px-6 py-4 text-left text-sm font-semibold sm:text-base'>
+                    Why RepoLens is Essential
+                  </th>
+                  <th className='text-card-foreground px-6 py-4 text-left text-sm font-semibold sm:text-base'>
+                    Core Benefit
+                  </th>
+                </tr>
+              </thead>
+              <tbody className='divide-border divide-y'>
+                <tr className='hover:bg-accent/50 transition-colors'>
+                  <td className='text-card-foreground px-6 py-4 font-medium'>
+                    Software Developers
+                  </td>
+                  <td className='text-muted-foreground px-6 py-4'>
+                    <strong>Code Understanding & Refactoring:</strong> Instantly understand large, legacy, or unfamiliar codebases through AI-guided exploration. Easily trace how a function relates to a requirement, accelerating onboarding and streamlining code reviews.
+                  </td>
+                  <td className='text-primary px-6 py-4 font-semibold'>
+                    Accelerated Code Understanding
+                  </td>
+                </tr>
+                <tr className='hover:bg-accent/50 transition-colors'>
+                  <td className='text-card-foreground px-6 py-4 font-medium'>
+                    Product Leaders & Managers
+                  </td>
+                  <td className='text-muted-foreground px-6 py-4'>
+                    <strong>Completeness & Gap Tracking:</strong> Get objective, real-time metrics on implementation progress. Automatically identify features that have been missed or partially implemented, ensuring every requirement is fully covered before release.
+                  </td>
+                  <td className='text-primary px-6 py-4 font-semibold'>
+                    Verifiable Implementation Completeness
+                  </td>
+                </tr>
+                <tr className='hover:bg-accent/50 transition-colors'>
+                  <td className='text-card-foreground px-6 py-4 font-medium'>
+                    Engineering Teams
+                  </td>
+                  <td className='text-muted-foreground px-6 py-4'>
+                    <strong>Audit & Compliance:</strong> Maintain a verifiable, auditable trail from requirements through to code. Automatically flag technical debt or implementation drift whenever code changes, ensuring continuous compliance with specifications.
+                  </td>
+                  <td className='text-primary px-6 py-4 font-semibold'>
+                    Automated Traceability & Compliance
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile: Card Layout */}
+          <div className='space-y-4 md:hidden'>
+            <div className='border-border bg-card rounded-xl border p-4 shadow-sm'>
+              <h3 className='text-card-foreground mb-2 text-base font-semibold'>
+                Software Developers
+              </h3>
+              <p className='text-muted-foreground mb-3 text-sm leading-relaxed'>
+                <strong>Code Understanding & Refactoring:</strong> Instantly understand large, legacy, or unfamiliar codebases through AI-guided exploration. Easily trace how a function relates to a requirement, accelerating onboarding and streamlining code reviews.
+              </p>
+              <div className='text-primary text-sm font-semibold'>
+                Accelerated Code Understanding
+              </div>
+            </div>
+
+            <div className='border-border bg-card rounded-xl border p-4 shadow-sm'>
+              <h3 className='text-card-foreground mb-2 text-base font-semibold'>
+                Product Leaders & Managers
+              </h3>
+              <p className='text-muted-foreground mb-3 text-sm leading-relaxed'>
+                <strong>Completeness & Gap Tracking:</strong> Get objective, real-time metrics on implementation progress. Automatically identify features that have been missed or partially implemented, ensuring every requirement is fully covered before release.
+              </p>
+              <div className='text-primary text-sm font-semibold'>
+                Verifiable Implementation Completeness
+              </div>
+            </div>
+
+            <div className='border-border bg-card rounded-xl border p-4 shadow-sm'>
+              <h3 className='text-card-foreground mb-2 text-base font-semibold'>
+                Engineering Teams
+              </h3>
+              <p className='text-muted-foreground mb-3 text-sm leading-relaxed'>
+                <strong>Audit & Compliance:</strong> Maintain a verifiable, auditable trail from requirements through to code. Automatically flag technical debt or implementation drift whenever code changes, ensuring continuous compliance with specifications.
+              </p>
+              <div className='text-primary text-sm font-semibold'>
+                Automated Traceability & Compliance
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Why Use RepoLens Section */}
         <div className='mb-16'>
           <Reveal>
             <h2 className='text-foreground mb-12 text-center text-2xl font-bold sm:text-3xl'>
@@ -101,55 +184,45 @@ export default function AboutPage() {
             </h2>
           </Reveal>
 
-          <div className='grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3'>
+          <div className='grid items-stretch gap-6 md:grid-cols-2'>
             <Reveal delay={0.1}>
-              <div className='border-border bg-card flex h-[350px] flex-col rounded-xl border p-6 shadow-sm transition hover:shadow-md'>
+              <div className='border-border bg-card flex flex-col rounded-xl border p-6 shadow-sm transition hover:shadow-md'>
                 <div className='bg-primary/10 mb-4 w-fit rounded-lg p-3'>
                   <Code className='text-primary h-6 w-6' />
                 </div>
                 <h3 className='text-card-foreground mb-3 text-lg font-semibold sm:text-xl'>
-                  Advanced Code Analysis
+                  Intelligent Code Analysis
                 </h3>
-                <p className='text-muted-foreground flex-1'>
-                  RepoLens provides comprehensive codebase analysis using Neo4j
-                  graph database to map code relationships, dependencies, and
-                  structure. Our AI-powered analysis engine identifies patterns,
-                  technical debt, and provides actionable insights for code
-                  improvement.
+                <p className='text-muted-foreground flex-1 leading-relaxed'>
+                  RepoLens provides comprehensive analysis by meticulously breaking down the codebase's structure. Our powerful AI engine uses this structure to identify patterns, technical debt, and provide deep, actionable insights for code improvement and maintenance.
                 </p>
               </div>
             </Reveal>
 
             <Reveal delay={0.2}>
-              <div className='border-border bg-card flex h-[350px] flex-col rounded-xl border p-6 shadow-sm transition hover:shadow-md'>
+              <div className='border-border bg-card flex flex-col rounded-xl border p-6 shadow-sm transition hover:shadow-md'>
                 <div className='bg-primary/10 mb-4 w-fit rounded-lg p-3'>
                   <Target className='text-primary h-6 w-6' />
                 </div>
                 <h3 className='text-card-foreground mb-3 text-lg font-semibold sm:text-xl'>
-                  Requirements Mapping
+                  Real-time Traceability & Completeness
                 </h3>
-                <p className='text-muted-foreground flex-1'>
-                  Connect business requirements to code implementation with our
-                  intelligent mapping system. RepoLens analyzes requirements
-                  documents and maps them to actual code, ensuring alignment
-                  between what's specified and what's implemented.
+                <p className='text-muted-foreground flex-1 leading-relaxed'>
+                  Connect business requirements to specific code implementations with our intelligent matching system. RepoLens tracks requirement coverage in real-time, calculating completeness scores and automatically flagging drift and implementation gaps to keep teams aligned.
                 </p>
               </div>
             </Reveal>
 
             <Reveal delay={0.3}>
-              <div className='border-border bg-card flex h-[350px] flex-col rounded-xl border p-6 shadow-sm transition hover:shadow-md'>
+              <div className='border-border bg-card flex flex-col rounded-xl border p-6 shadow-sm transition hover:shadow-md md:col-span-2'>
                 <div className='bg-primary/10 mb-4 w-fit rounded-lg p-3'>
                   <Zap className='text-primary h-6 w-6' />
                 </div>
                 <h3 className='text-card-foreground mb-3 text-lg font-semibold sm:text-xl'>
-                  Multi-Tenant Project Management
+                  Scalable Project Management
                 </h3>
-                <p className='text-muted-foreground flex-1'>
-                  Manage multiple projects with our robust multi-tenant
-                  architecture. Create, analyze, and track projects from GitHub
-                  repositories or local sources with comprehensive project
-                  lifecycle management and team collaboration features.
+                <p className='text-muted-foreground flex-1 leading-relaxed'>
+                  Manage multiple projects across your organization with our robust, scalable architecture. Easily create, analyze, and track projects from GitHub, GitLab, or local sources with comprehensive project lifecycle management features.
                 </p>
               </div>
             </Reveal>

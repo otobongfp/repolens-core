@@ -9,7 +9,7 @@ import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: 'RepoLens',
-  description: 'Improving opensource education with AI',
+  description: 'AI powered requirements engineering',
 };
 
 export const viewport = {

@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { AIController } from './ai.controller';
 import { AIService } from './ai.service';
 import { ConfigModule } from '../common/config/config.module';
+import { HallucinationModule } from '../common/hallucination/hallucination.module';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, HallucinationModule],
   controllers: [AIController],
   providers: [AIService],
   exports: [AIService],

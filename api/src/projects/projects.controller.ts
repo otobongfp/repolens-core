@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto, UpdateProjectDto } from '../shared/dto/projects.dto';
@@ -6,13 +6,25 @@ import { CreateProjectDto, UpdateProjectDto } from '../shared/dto/projects.dto';
 @ApiTags('projects')
 @Controller('projects')
 export class ProjectsController {
+  private readonly logger = new Logger(ProjectsController.name);
+
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create project (Core mode - no auth required)' })
   async create(@Body() createDto: CreateProjectDto) {
-    // Core mode: No auth required
-    return this.projectsService.create(createDto);
+    this.logger.log(`Creating project: ${createDto.name}`);
+    this.logger.debug(`Project data:`, JSON.stringify(createDto, null, 2));
+
+    try {
+      const project = await this.projectsService.create(createDto);
+      this.logger.log(`Project created successfully: ${project.id}`);
+      return project;
+    } catch (error) {
+      this.logger.error(`Failed to create project:`, error);
+      this.logger.error(error.stack);
+      throw error;
+    }
   }
 
   @Get()

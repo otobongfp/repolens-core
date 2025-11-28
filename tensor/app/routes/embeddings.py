@@ -4,7 +4,7 @@ from typing import List, Optional, Dict
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app.main import adapters, batcher
+from app.state import adapters, batcher
 from app.adapters import choose_adapter
 
 router = APIRouter(prefix="/v1/embed", tags=["embeddings"])
@@ -29,15 +29,12 @@ async def embed(request: EmbedRequest, req: Request):
     """Generate embeddings with automatic batching"""
     t0 = time.time()
     
-    # Authenticate
     auth_header = req.headers.get("Authorization", "")
     if not auth_header.startswith(f"Bearer {batcher.settings.tensor_api_key}"):
         raise HTTPException(401, "Unauthorized")
     
     try:
         adapter = choose_adapter(adapters, request.provider, request.model, batcher.settings)
-        
-        # Submit to batcher and wait for result
         result = await batcher.process_embed_request(adapter, request.inputs)
         
         timings_ms = int((time.time() - t0) * 1000)

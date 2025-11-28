@@ -35,21 +35,20 @@ export default function Hero() {
             <div className='absolute top-0 left-4 h-full w-0.5 bg-[linear-gradient(to_bottom,_transparent_0%,_var(--border)_9.27%,_var(--border)_90.7%,_transparent_100%)]'></div>
             <section className='relative flex min-h-40 flex-col items-center justify-center gap-3 bg-transparent py-12 text-center backdrop-blur-sm sm:min-h-36 sm:py-24'>
               <h1 className='text-foreground px-2 font-serif text-2xl leading-tight font-extrabold sm:px-4 sm:text-3xl md:text-4xl lg:text-5xl'>
-                <span className='block sm:inline'>Understand Any </span>
+                <span className='block sm:inline'>AI-Powered Requirements Traceability </span>
                 <span className='block sm:inline'>
-                  Codebase & Engineer Requirements
+                  & Completeness Tracking
                 </span>
                 <span className='block sm:inline'> in Seconds</span>
               </h1>
 
               <p className='text-muted-foreground sm:text-md max-w-xl px-2 text-center text-xs leading-relaxed sm:px-4 sm:text-sm'>
                 <span className='block sm:inline'>
-                  Upload requirements document or Paste a GitHub repo URL,
-                  visualize its structure, match requirements to codebase,
+                Stop guessing if your code meets specifications: RepoLens automatically uses AI to link requirements directly to code,
                 </span>
                 <span className='block sm:inline'>
                   {' '}
-                  and ask AI anything about the code.
+                  providing real-time completeness tracking, automatic drift detection, and AI-cited answers about your code's structure.
                 </span>
               </p>
               <div
@@ -82,14 +81,14 @@ export default function Hero() {
           </Link>
         </Reveal>
 
-        <div className='flex items-center gap-4'>
+        <div className='flex flex-col items-center gap-3 sm:flex-row sm:gap-4'>
           <Reveal delay={0.6}>
             <Link
               href='/about'
-              className='border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition'
+              className='border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition'
             >
               <Info className='h-4 w-4' />
-              About RepoLens
+              About
             </Link>
           </Reveal>
 
@@ -98,7 +97,7 @@ export default function Hero() {
               href='https://github.com/otobongfp/repolens'
               target='_blank'
               rel='noopener noreferrer'
-              className='border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition'
+              className='border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition'
             >
               <Github className='h-4 w-4' />
               GitHub

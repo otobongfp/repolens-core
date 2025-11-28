@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.main import adapters
+from app.state import adapters
 from app.adapters import choose_adapter
 from app.config import settings
 
