@@ -152,13 +152,13 @@ export default function AnalysisResults({
           </div>
           <div className='flex items-center justify-between'>
             <span className='text-muted-foreground'>Started:</span>
-            <span className='text-foreground text-sm'>
+            <span className='text-foreground text-xs'>
               {new Date(result.started_at).toLocaleString()}
             </span>
           </div>
           <div className='flex items-center justify-between'>
             <span className='text-muted-foreground'>Completed:</span>
-            <span className='text-foreground text-sm'>
+            <span className='text-foreground text-xs'>
               {new Date(result.completed_at).toLocaleString()}
             </span>
           </div>

@@ -234,13 +234,13 @@ export default function ProjectsPage() {
                     <div className='space-y-4'>
                       <div className='flex items-center justify-between'>
                         <span className='text-muted-foreground'>Created</span>
-                        <span className='text-card-foreground text-sm'>
+                        <span className='text-card-foreground text-xs'>
                           {formatDate(selectedProject.created_at)}
                         </span>
                       </div>
                       <div className='flex items-center justify-between'>
                         <span className='text-muted-foreground'>Updated</span>
-                        <span className='text-card-foreground text-sm'>
+                        <span className='text-card-foreground text-xs'>
                           {formatDate(selectedProject.updated_at)}
                         </span>
                       </div>
@@ -249,7 +249,7 @@ export default function ProjectsPage() {
                           <span className='text-muted-foreground'>
                             Last Analyzed
                           </span>
-                          <span className='text-card-foreground text-sm'>
+                          <span className='text-card-foreground text-xs'>
                             {formatDate(selectedProject.last_analyzed)}
                           </span>
                         </div>
