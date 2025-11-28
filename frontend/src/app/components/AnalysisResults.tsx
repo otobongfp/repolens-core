@@ -7,10 +7,7 @@ import {
   BarChart3Icon,
   FileTextIcon,
   GitBranchIcon,
-  AlertTriangleIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  InfoIcon,
+  CheckCircleIcon
 } from '../components/LucideIcons';
 
 export interface AnalysisResult {
