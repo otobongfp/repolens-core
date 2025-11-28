@@ -179,13 +179,13 @@ export default function RequirementsPage() {
       reader.readAsText(file);
     } else if (file.type === 'application/pdf') {
       // For PDF, we'll need to send the file to the backend
-      toast.info('PDF files will be processed by the backend');
+      toast('PDF files will be processed by the backend');
       setDocumentContent(`[PDF File: ${file.name}]`);
     } else if (
       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       file.name.endsWith('.docx')
     ) {
-      toast.info('DOCX files will be processed by the backend');
+      toast('DOCX files will be processed by the backend');
       setDocumentContent(`[DOCX File: ${file.name}]`);
     } else {
       toast.error('Unsupported file type. Please use TXT, MD, PDF, or DOCX files.');
@@ -213,7 +213,7 @@ export default function RequirementsPage() {
         // For now, extract text from file name as placeholder
         // In production, you'd send the file to backend for processing
         content = `[File: ${uploadedFile.name}]`;
-        toast.info('File upload processing will be handled by backend');
+        toast('File upload processing will be handled by backend');
       }
 
       const data = await extractRequirements(content, selectedProject.project_id);
@@ -739,7 +739,7 @@ function RequirementsTab({
           </div>
           <p className='text-muted-foreground text-sm'>
             {requirements.length} requirement(s) •{' '}
-            {requirements.filter((r) => (r.requirementMatches?.length || 0) > 0).length} matched
+            {requirements.filter((r:any) => (r.requirementMatches?.length || 0) > 0).length} matched
             to code
           </p>
         </div>
