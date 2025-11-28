@@ -14,6 +14,7 @@ export class EmbeddingWorker {
 
   async process(job: any) {
     const { repoId, sha, path, nodePath, nodeText, astS3Key, nodeId } = job.data;
+    const startTime = Date.now();
 
     this.logger.log(`Creating embedding for ${path}:${nodePath}`);
 
@@ -43,12 +44,14 @@ export class EmbeddingWorker {
 
       // Create embedding using Tensor service
       let vectorId: string | null = null;
+      let vector: number[] | null = null;
+      
       try {
         const embedResponse = await this.tensor.embed([nodeText]);
         if (embedResponse.vectors && embedResponse.vectors.length > 0) {
+          vector = embedResponse.vectors[0];
           vectorId = `vec_${repoId}_${sha}_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
-          // In production, store vector in pgvector or external vector DB
-          this.logger.debug(`Generated embedding vector for ${nodePath}`);
+          this.logger.debug(`Generated embedding vector for ${nodePath} (dimensions: ${vector.length})`);
         }
       } catch (error) {
         this.logger.warn(`Failed to generate embedding:`, error);
@@ -56,7 +59,7 @@ export class EmbeddingWorker {
       }
 
       // Store in database
-      await this.prisma.embedding.create({
+      const embedding = await this.prisma.embedding.create({
         data: {
           repoId,
           filePath: path,
@@ -71,7 +74,18 @@ export class EmbeddingWorker {
         },
       });
 
-      this.logger.log(`Successfully created embedding for ${path}:${nodePath}`);
+      // Store vector in pgvector if available
+      if (vector && embedding.id) {
+        try {
+          await this.prisma.storeVector(embedding.id, vector);
+          this.logger.debug(`Stored vector in pgvector for ${nodePath}`);
+        } catch (error) {
+          this.logger.warn(`Failed to store vector in pgvector, continuing without:`, error);
+        }
+      }
+
+      const duration = (Date.now() - startTime) / 1000;
+      this.logger.log(`Successfully created embedding for ${path}:${nodePath} in ${duration}s`);
     } catch (error) {
       this.logger.error(`Failed to create embedding for ${path}:${nodePath}:`, error);
       throw error;

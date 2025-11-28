@@ -79,6 +79,8 @@ export interface UserSettings {
 export function useRepolensApi() {
   const { apiBase } = useApi();
 
+  // Legacy function - these endpoints may not exist in the current API
+  // TODO: Update to use /api/repositories flow: create repo first, then analyze
   async function analyzeRepo(
     url: string,
     folderPath?: string,
@@ -92,7 +94,8 @@ export function useRepolensApi() {
       }
     }
 
-    // Use /repository/analyze/project for directory analysis
+    // Legacy endpoints - may not exist in current API
+    // New flow: Create repository via POST /api/repositories, then analyze via POST /api/repositories/:id/analyze
     const endpoint = folderPath
       ? `${apiBase}/repository/analyze/project`
       : `${apiBase}/repository/analyze`;
@@ -104,7 +107,7 @@ export function useRepolensApi() {
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(
           folderPath ? { folder_path: folderPath } : { url },
         ),
@@ -139,37 +142,49 @@ export function useRepolensApi() {
     }
   }
 
+  // Legacy function - endpoint may not exist in current API
   async function getFiles() {
-    const res = await fetch(`${apiBase}/repository/files`);
+    const res = await fetch(`${apiBase}/repository/files`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error('Failed to get files');
     return await res.json();
   }
 
+  // Legacy function - endpoint may not exist in current API
   async function getFile(path: string) {
     const res = await fetch(
       `${apiBase}/repository/file?path=${encodeURIComponent(path)}`,
+      {
+        headers: getAuthHeaders(),
+      },
     );
     if (!res.ok) throw new Error('Failed to get file');
     return await res.json();
   }
 
-  async function askRepoQuestion(graph: any, question: string) {
-    const res = await fetch(`${apiBase}/ai/ask`, {
+  async function askRepoQuestion(
+    graph: any,
+    question: string,
+    repoId?: string,
+  ) {
+    const res = await fetch(`${apiBase}/api/ai/ask`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ graph_data: graph, question }),
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ graphData: graph, question, repoId }),
     });
     if (!res.ok) throw new Error('Failed to get answer from AI');
     return await res.json();
   }
 
   async function fetchEnhancedGraph(folderPath: string) {
-    const res = await fetch(`${apiBase}/repository/analyze/enhanced`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder_path: folderPath }),
+    // Note: This endpoint may not exist in the API yet
+    // Using repositories endpoint as fallback
+    const res = await fetch(`${apiBase}/api/repositories`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to fetch enhanced graph');
+    if (!res.ok) throw new Error('Failed to fetch repositories');
     return await res.json();
   }
 
@@ -239,7 +254,7 @@ export function useRepolensApi() {
     projectData: Partial<ProjectCreateRequest>,
   ): Promise<Project> {
     const res = await fetch(`${apiBase}/api/projects/${projectId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify(projectData),
     });
@@ -402,6 +417,306 @@ export function useRepolensApi() {
     return await res.json();
   }
 
+  // Traceability API functions
+  async function getTraceabilityMatrix(projectId: string): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/traceability/matrix/${projectId}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to get traceability matrix');
+    return await res.json();
+  }
+
+  async function getRequirementTraceability(
+    requirementId: string,
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/traceability/requirement/${requirementId}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to get requirement traceability');
+    return await res.json();
+  }
+
+  async function analyzeImpact(
+    nodeId: string,
+    projectId?: string,
+  ): Promise<any> {
+    const url = projectId
+      ? `${apiBase}/api/requirements/traceability/impact/${nodeId}?projectId=${projectId}`
+      : `${apiBase}/api/requirements/traceability/impact/${nodeId}`;
+    const res = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to analyze impact');
+    return await res.json();
+  }
+
+  async function exportTraceabilityMatrix(
+    projectId: string,
+    format: 'json' | 'csv' | 'markdown' = 'json',
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/traceability/export/${projectId}?format=${format}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to export traceability matrix');
+    if (format === 'json') {
+      return await res.json();
+    }
+    return await res.text();
+  }
+
+  // Drift detection API functions
+  async function detectDrift(projectId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/drift/${projectId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to detect drift');
+    return await res.json();
+  }
+
+  async function checkRequirementDrift(requirementId: string): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/drift/requirement/${requirementId}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to check requirement drift');
+    return await res.json();
+  }
+
+  // Gap analysis API functions
+  async function getGaps(projectId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/gaps/${projectId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to get gaps');
+    return await res.json();
+  }
+
+  async function getHighPriorityGaps(projectId: string): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/gaps/${projectId}/priority`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to get high priority gaps');
+    return await res.json();
+  }
+
+  async function getImplementationSuggestions(
+    requirementId: string,
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/gaps/suggestions/${requirementId}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to get implementation suggestions');
+    return await res.json();
+  }
+
+  // Compliance API functions
+  async function generateComplianceReport(
+    projectId: string,
+    format: 'json' | 'pdf' | 'html' | 'markdown' = 'json',
+    includeDetails = false,
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/compliance/report/${projectId}?format=${format}&includeDetails=${includeDetails}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to generate compliance report');
+    if (format === 'json') {
+      return await res.json();
+    }
+    return await res.text();
+  }
+
+  async function validateCompliance(
+    projectId: string,
+    standards?: string[],
+  ): Promise<any> {
+    const standardsParam = standards ? standards.join(',') : '';
+    const url = standardsParam
+      ? `${apiBase}/api/requirements/compliance/validate/${projectId}?standards=${standardsParam}`
+      : `${apiBase}/api/requirements/compliance/validate/${projectId}`;
+    const res = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to validate compliance');
+    return await res.json();
+  }
+
+  // Versioning API functions
+  async function createRequirementVersion(
+    requirementId: string,
+    data: {
+      title?: string;
+      text?: string;
+      type?: string;
+      status?: string;
+      userId?: string;
+    },
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/version/${requirementId}`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to create requirement version');
+    return await res.json();
+  }
+
+  async function getVersionHistory(requirementId: string): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/version/history/${requirementId}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error('Failed to get version history');
+    return await res.json();
+  }
+
+  // Verify match
+  async function verifyMatch(matchId: string, status: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/verify`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ matchId, status }),
+    });
+    if (!res.ok) throw new Error('Failed to verify match');
+    return await res.json();
+  }
+
+  // Accept/Reject requirements
+  async function acceptRequirement(requirementId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/${requirementId}/accept`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to accept requirement');
+    return await res.json();
+  }
+
+  async function rejectRequirement(requirementId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/${requirementId}/reject`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to reject requirement');
+    return await res.json();
+  }
+
+  // Search API functions
+  async function search(
+    query: string,
+    repoId?: string,
+    limit?: number,
+  ): Promise<any> {
+    const res = await fetch(`${apiBase}/api/search`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ query, repoId, limit }),
+    });
+    if (!res.ok) throw new Error('Failed to search');
+    return await res.json();
+  }
+
+  async function searchWithRAG(
+    query: string,
+    repoId?: string,
+    useVectorSearch = true,
+  ): Promise<any> {
+    const res = await fetch(`${apiBase}/api/search/rag`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ query, repoId, useVectorSearch }),
+    });
+    if (!res.ok) throw new Error('Failed to search with RAG');
+    return await res.json();
+  }
+
+  async function validateResponse(
+    response: string,
+    repoId?: string,
+    query?: string,
+  ): Promise<any> {
+    const res = await fetch(`${apiBase}/api/search/validate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ response, repoId, query }),
+    });
+    if (!res.ok) throw new Error('Failed to validate response');
+    return await res.json();
+  }
+
+  // Repository API functions
+  async function createRepository(repoData: {
+    projectId?: string;
+    name: string;
+    url?: string;
+    [key: string]: any;
+  }): Promise<any> {
+    const res = await fetch(`${apiBase}/api/repositories`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(repoData),
+    });
+    if (!res.ok) throw new Error('Failed to create repository');
+    return await res.json();
+  }
+
+  async function getRepositories(): Promise<any[]> {
+    const res = await fetch(`${apiBase}/api/repositories`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to get repositories');
+    return await res.json();
+  }
+
+  async function getRepository(repoId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/repositories/${repoId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to get repository');
+    return await res.json();
+  }
+
+  async function analyzeRepository(repoId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/repositories/${repoId}/analyze`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to analyze repository');
+    return await res.json();
+  }
+
+  async function syncRepository(repoId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/repositories/${repoId}/sync`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to sync repository');
+    return await res.json();
+  }
+
   return {
     analyzeRepo,
     analyzeRepoFresh,
@@ -431,6 +746,37 @@ export function useRepolensApi() {
     extractRequirements,
     matchRequirements,
     getProjectRequirements,
+    verifyMatch,
+    acceptRequirement,
+    rejectRequirement,
+    // Traceability
+    getTraceabilityMatrix,
+    getRequirementTraceability,
+    analyzeImpact,
+    exportTraceabilityMatrix,
+    // Drift Detection
+    detectDrift,
+    checkRequirementDrift,
+    // Gap Analysis
+    getGaps,
+    getHighPriorityGaps,
+    getImplementationSuggestions,
+    // Compliance
+    generateComplianceReport,
+    validateCompliance,
+    // Versioning
+    createRequirementVersion,
+    getVersionHistory,
+    // Search
+    search,
+    searchWithRAG,
+    validateResponse,
+    // Repositories
+    createRepository,
+    getRepositories,
+    getRepository,
+    analyzeRepository,
+    syncRepository,
     apiBase,
   };
 }

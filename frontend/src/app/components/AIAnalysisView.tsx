@@ -35,12 +35,12 @@ export default function AIAnalysisView() {
       const enhancedGraph = await fetchEnhancedGraph(currentFolder);
       console.log(enhancedGraph);
       console.log('Enhanced graph:', enhancedGraph);
-      const response = await fetch(`${apiBase}/ai/analyze`, {
+      const response = await fetch(`${apiBase}/api/ai/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ graph_data: enhancedGraph }),
+        body: JSON.stringify({ graphData: enhancedGraph }),
       });
 
       if (!response.ok) {

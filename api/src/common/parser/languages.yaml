@@ -1,0 +1,149 @@
+# Tree-sitter Language Configuration
+# Maps file extensions to tree-sitter parser modules
+
+languages:
+  # JavaScript (exports language directly)
+  - name: javascript
+    extensions: [js, jsx, mjs, cjs]
+    module: tree-sitter-javascript
+    export: ''
+    aliases: [js, javascript, ecmascript]
+
+  # TypeScript
+  - name: typescript
+    extensions: [ts, tsx]
+    module: tree-sitter-typescript
+    export: typescript
+    aliases: [ts, typescript]
+
+  - name: tsx
+    extensions: [tsx]
+    module: tree-sitter-typescript
+    export: tsx
+    aliases: [tsx]
+
+  # Python (exports language directly)
+  - name: python
+    extensions: [py, pyw, pyi]
+    module: tree-sitter-python
+    export: ''
+    aliases: [py, python]
+
+  # Rust (exports language directly)
+  - name: rust
+    extensions: [rs]
+    module: tree-sitter-rust
+    export: ''
+    aliases: [rs, rust]
+
+  # C# (exports language directly)
+  - name: csharp
+    extensions: [cs]
+    module: tree-sitter-c-sharp
+    export: ''
+    aliases: [cs, csharp, c#]
+
+  # C (exports language directly)
+  - name: c
+    extensions: [c, h]
+    module: tree-sitter-c
+    export: ''
+    aliases: [c]
+
+  # C++ (exports language directly)
+  - name: cpp
+    extensions: [cpp, cxx, cc, c++, hpp, hxx, hh, h++]
+    module: tree-sitter-cpp
+    export: ''
+    aliases: [cpp, c++]
+
+  # Go (exports language directly)
+  - name: go
+    extensions: [go]
+    module: tree-sitter-go
+    export: ''
+    aliases: [go, golang]
+
+  # Ruby (exports language directly)
+  - name: ruby
+    extensions: [rb, rbw, rake, gemspec]
+    module: tree-sitter-ruby
+    export: ''
+    aliases: [rb, ruby]
+
+  # Java (exports language directly)
+  - name: java
+    extensions: [java]
+    module: tree-sitter-java
+    export: ''
+    aliases: [java]
+
+  # PHP (exports language directly)
+  - name: php
+    extensions: [php, phtml]
+    module: tree-sitter-php
+    export: ''
+    aliases: [php]
+
+  # Swift (exports language directly)
+  - name: swift
+    extensions: [swift]
+    module: tree-sitter-swift
+    export: ''
+    aliases: [swift]
+
+  # Kotlin (exports language directly)
+  - name: kotlin
+    extensions: [kt, kts]
+    module: tree-sitter-kotlin
+    export: ''
+    aliases: [kt, kotlin]
+
+  # Scala (exports language directly)
+  - name: scala
+    extensions: [scala, sc]
+    module: tree-sitter-scala
+    export: ''
+    aliases: [scala]
+
+  # JSON (exports language directly)
+  - name: json
+    extensions: [json]
+    module: tree-sitter-json
+    export: ''
+    aliases: [json]
+
+  # YAML (exports language directly)
+  - name: yaml
+    extensions: [yaml, yml]
+    module: tree-sitter-yaml
+    export: ''
+    aliases: [yaml, yml]
+
+  # Markdown (exports language directly)
+  - name: markdown
+    extensions: [md, markdown]
+    module: tree-sitter-markdown
+    export: ''
+    aliases: [md, markdown]
+
+  # HTML (exports language directly)
+  - name: html
+    extensions: [html, htm]
+    module: tree-sitter-html
+    export: ''
+    aliases: [html]
+
+  # CSS (ESM module - skipped for now)
+  - name: css
+    extensions: [css]
+    module: tree-sitter-css
+    export: ''
+    aliases: [css]
+
+  # Shell/Bash (exports language directly)
+  - name: bash
+    extensions: [sh, bash, zsh]
+    module: tree-sitter-bash
+    export: ''
+    aliases: [sh, bash, shell]

@@ -10,13 +10,13 @@ import { ProjectsModule } from './projects/projects.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { AIModule } from './ai/ai.module';
 import { RequirementsModule } from './requirements/requirements.module';
-import { SecurityModule } from './security/security.module';
-import { ActionProposalsModule } from './action-proposals/action-proposals.module';
-import { AdminModule } from './admin/admin.module';
-import { SettingsModule } from './settings/settings.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { SearchModule } from './search/search.module';
 import { WorkersModule } from './workers/workers.module';
+import { McpModule } from './mcp/mcp.module';
+import { MonitoringModule } from './common/monitoring/monitoring.module';
+import { RateLimitModule } from './common/rate-limit/rate-limit.module';
+import { HallucinationModule } from './common/hallucination/hallucination.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -36,12 +36,12 @@ import { AppController } from './app.controller';
     RepositoriesModule,
     AIModule,
     RequirementsModule,
-    SecurityModule,
-    ActionProposalsModule,
-    AdminModule,
-    SettingsModule,
     WebhooksModule,
     WorkersModule,
+    McpModule,
+    MonitoringModule,
+    RateLimitModule,
+    HallucinationModule,
   ],
   controllers: [AppController],
   providers: [],

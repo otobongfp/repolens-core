@@ -5,7 +5,6 @@ numpy==1.26.3
 sentence-transformers==2.3.1
 redis==5.0.1
 aiohttp==3.9.1
-aioredis==2.0.1
 
 # Optional: Hosted model providers
 openai==1.12.0

@@ -1,0 +1,76 @@
+{
+  "dashboard": {
+    "title": "RepoLens Metrics",
+    "tags": ["repolens"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "HTTP Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "{{method}} {{route}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "HTTP Request Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Queue Jobs",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(queue_jobs_total[5m])",
+            "legendFormat": "{{queue}} {{status}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Active Queue Jobs",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "queue_jobs_active",
+            "legendFormat": "{{queue}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Embeddings Generated",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(embeddings_generated_total[5m])",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Vector Searches",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(vector_searches_total[5m])",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      }
+    ]
+  }
+}
+

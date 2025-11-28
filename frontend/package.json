@@ -14,6 +14,7 @@
     "deploy": "npm run build:cf && wrangler pages deploy .vercel/output/static"
   },
   "dependencies": {
+    "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.3",
     "@space-man/react-theme-animation": "^1.1.1",
     "class-variance-authority": "^0.7.1",

@@ -492,7 +492,7 @@ export default function AnalyzePage() {
           </p>
           <button
             onClick={() => router.push('/dashboard/projects')}
-            className='bg-primary hover:bg-primary/80 text-primary-foreground rounded-lg px-6 py-3 font-semibold transition'
+            className='bg-primary hover:bg-primary/80 text-primary-foreground flex min-h-[44px] items-center justify-center rounded-lg px-6 py-3 font-semibold transition'
           >
             Go to Projects
           </button>
@@ -616,7 +616,7 @@ export default function AnalyzePage() {
                 {/* Select Project Button */}
                 <button
                   onClick={() => handleSelectProject(project)}
-                  className='w-full rounded-lg border border-gray-600 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white'
+                  className='flex min-h-[44px] w-full items-center justify-center rounded-lg border border-gray-600 bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white'
                 >
                   <div className='flex items-center justify-center gap-2'>
                     <PlayIcon className='h-4 w-4' />
@@ -635,7 +635,7 @@ export default function AnalyzePage() {
                     project.status === 'analyzing' ||
                     project.status === 'cloning'
                   }
-                  className={`w-full rounded-lg px-4 py-2 font-semibold transition disabled:opacity-50 ${
+                  className={`flex min-h-[44px] w-full items-center justify-center rounded-lg px-4 py-2.5 font-semibold transition disabled:opacity-50 ${
                     project.status === 'completed'
                       ? 'bg-green-600 text-white hover:bg-green-700'
                       : 'bg-primary hover:bg-primary/80 text-primary-foreground'
@@ -691,9 +691,10 @@ export default function AnalyzePage() {
                 </span>
                 <button
                   onClick={handleBackToProjects}
-                  className='text-muted-foreground hover:text-foreground text-sm transition'
+                  className='text-muted-foreground hover:text-foreground flex min-h-[44px] items-center justify-center rounded-lg px-3 py-2 text-sm transition sm:min-h-0'
                 >
-                  ← Back to Projects
+                  <span className='hidden sm:inline'>← Back to Projects</span>
+                  <span className='sm:hidden'>← Back</span>
                 </button>
               </div>
             </div>

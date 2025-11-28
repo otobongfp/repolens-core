@@ -339,9 +339,10 @@ export default function GraphView({
       {/* Container fullscreen button */}
       {setFullscreen && (
         <button
-          className='bg-primary hover:bg-primary/80 absolute top-2 right-2 z-10 rounded-full p-1.5 text-xs text-white shadow-lg transition sm:top-4 sm:right-4 sm:p-2 sm:text-sm'
+          className='bg-primary hover:bg-primary/80 absolute top-2 right-2 z-10 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 text-xs text-white shadow-lg transition sm:top-4 sm:right-4 sm:text-sm'
           onClick={() => setFullscreen(!fullscreen)}
           title='Toggle container fullscreen'
+          aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         >
           <span className='hidden sm:inline'>
             {fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
@@ -352,11 +353,16 @@ export default function GraphView({
 
       {/* Browser fullscreen button */}
       <button
-        className='bg-primary absolute top-2 right-12 z-10 rounded-full p-1.5 text-xs text-white shadow-lg transition hover:bg-[#158452] sm:top-4 sm:right-16 sm:p-2 sm:text-sm'
+        className='bg-primary absolute top-2 right-12 z-10 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 text-xs text-white shadow-lg transition hover:bg-[#158452] sm:top-4 sm:right-16 sm:text-sm'
         onClick={
           browserFullscreen ? exitBrowserFullscreen : enterBrowserFullscreen
         }
         title={
+          browserFullscreen
+            ? 'Exit browser fullscreen'
+            : 'Enter browser fullscreen'
+        }
+        aria-label={
           browserFullscreen
             ? 'Exit browser fullscreen'
             : 'Enter browser fullscreen'
@@ -378,22 +384,25 @@ export default function GraphView({
         </span>
         <button
           onClick={zoomOut}
-          className='rounded-sm border border-white/20 bg-white/10 px-1.5 py-1 text-xs hover:bg-white/20 sm:px-2'
+          className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm border border-white/20 bg-white/10 px-2 py-2 text-xs hover:bg-white/20 sm:px-2'
           title='Zoom Out'
+          aria-label='Zoom Out'
         >
           −
         </button>
         <button
           onClick={resetZoom}
-          className='rounded-sm border border-white/20 bg-white/10 px-1.5 py-1 text-xs hover:bg-white/20 sm:px-2'
+          className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm border border-white/20 bg-white/10 px-2 py-2 text-xs hover:bg-white/20 sm:px-2'
           title='Reset Zoom'
+          aria-label='Reset Zoom'
         >
           ⌂
         </button>
         <button
           onClick={zoomIn}
-          className='rounded-sm border border-white/20 bg-white/10 px-1.5 py-1 text-xs hover:bg-white/20 sm:px-2'
+          className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm border border-white/20 bg-white/10 px-2 py-2 text-xs hover:bg-white/20 sm:px-2'
           title='Zoom In'
+          aria-label='Zoom In'
         >
           +
         </button>

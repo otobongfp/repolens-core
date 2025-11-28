@@ -1,10 +1,7 @@
 """Main FastAPI application"""
-import asyncio
 from fastapi import FastAPI
 from app.routes import embeddings, summarize, chat, health
-from app.config import settings
-from app.adapters import initialize_adapters
-from app.services.batcher import EmbedBatcher
+from app.state import batcher
 
 app = FastAPI(
     title="Tensor",
@@ -12,14 +9,6 @@ app = FastAPI(
     description="RepoLens AI Inference Service"
 )
 
-# Initialize adapters
-adapters = initialize_adapters()
-
-# Start batcher
-batcher = EmbedBatcher(adapters)
-asyncio.create_task(batcher.run())
-
-# Register routes
 app.include_router(health.router)
 app.include_router(embeddings.router)
 app.include_router(summarize.router)

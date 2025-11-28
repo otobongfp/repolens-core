@@ -1,0 +1,484 @@
+// RepoLens Complete ERD
+
+// ============================================
+// GIT PROVIDER & INSTALLATION
+// ============================================
+
+Table Installation {
+  id string [primary key]
+  provider string // "github", "gitlab"
+  account_id string
+  encrypted_token string
+  expires_at timestamp [null]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'GitHub/GitLab App installations with encrypted tokens'
+  indexes {
+    (provider, account_id) [name: 'idx_installation_provider_account']
+  }
+}
+
+// ============================================
+// REPOSITORY & VERSION CONTROL
+// ============================================
+
+Table Repo {
+  id string [primary key]
+  provider string // "github", "gitlab", "url"
+  owner string
+  name string
+  full_name string // owner/name
+  url string
+  default_branch string [null]
+  latest_sha string [null]
+  visibility string [null] // "public"|"private"
+  installation_id string [null, ref: > Installation.id]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Repository metadata from Git providers'
+  indexes {
+    (provider, full_name) [name: 'idx_repo_provider_fullname']
+    installation_id [name: 'idx_repo_installation']
+  }
+}
+
+Table Commit {
+  id string [primary key]
+  repo_id string [ref: > Repo.id]
+  sha string
+  message text [null]
+  author string [null]
+  timestamp timestamp
+  created_at timestamp [default: `now()`]
+  
+  Note: 'Git commit history tracking'
+  indexes {
+    (repo_id, sha) [unique, name: 'idx_commit_repo_sha']
+    (repo_id, timestamp) [name: 'idx_commit_repo_timestamp']
+  }
+}
+
+Table FileBlob {
+  id string [primary key]
+  repo_id string [ref: > Repo.id]
+  sha string // sha256 of content
+  path string
+  size integer
+  s3_key string
+  parsed_at timestamp [null]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'File content stored in S3, referenced by SHA'
+  indexes {
+    (repo_id, sha) [name: 'idx_fileblob_repo_sha']
+    path [name: 'idx_fileblob_path']
+  }
+}
+
+Table ParseJob {
+  id string [primary key]
+  repo_id string [ref: > Repo.id]
+  sha string
+  status string // "queued", "running", "failed", "done"
+  payload json [null]
+  attempts integer [default: 0]
+  error text [null]
+  started_at timestamp [null]
+  finished_at timestamp [null]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'AST parsing job queue tracking'
+  indexes {
+    (repo_id, status) [name: 'idx_parsejob_repo_status']
+    (status, created_at) [name: 'idx_parsejob_status_created']
+  }
+}
+
+// ============================================
+// AST PARSING & CODE STRUCTURE
+// ============================================
+
+Table Node {
+  id string [primary key]
+  repo_id string [ref: > Repo.id]
+  file_path string
+  blob_sha string // SHA of file content
+  node_path string // e.g., "function.processPayment"
+  node_type string // "function", "class", "method", "export", "comment_block"
+  start_line integer
+  end_line integer
+  start_column integer [null]
+  end_column integer [null]
+  text text // Full node text
+  text_s3_key string [null] // Large texts stored in S3
+  summary text [null]
+  summary_confidence string [default: 'medium'] // "high", "medium", "low", "insufficient"
+  signature string [null] // Function/class signature
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Extracted AST nodes from code parsing'
+  indexes {
+    (repo_id, file_path, node_path, blob_sha) [unique, name: 'idx_node_unique']
+    (repo_id, node_type) [name: 'idx_node_repo_type']
+    blob_sha [name: 'idx_node_blob_sha']
+  }
+}
+
+Table Symbol {
+  id string [primary key]
+  repo_id string [ref: > Repo.id]
+  file_path string
+  blob_sha string
+  name string // Symbol name (function name, class name, etc.)
+  kind string // "function", "class", "method", "variable", "import"
+  signature string [null] // Full signature
+  node_id string [unique, ref: > Node.id]
+  node_path string
+  created_at timestamp [default: `now()`]
+  
+  Note: 'Symbol table for deterministic lookups and call graphs'
+  indexes {
+    (repo_id, file_path, name, blob_sha) [unique, name: 'idx_symbol_unique']
+    (repo_id, name) [name: 'idx_symbol_repo_name']
+    kind [name: 'idx_symbol_kind']
+  }
+}
+
+Table SymbolRef {
+  id string [primary key]
+  repo_id string
+  from_symbol_id string [ref: > Symbol.id]
+  to_symbol_id string [ref: > Symbol.id]
+  from_node_id string [ref: > Node.id]
+  to_node_id string [ref: > Node.id]
+  kind string // "calls", "imports", "inherits", "references"
+  context text [null] // Additional context about the reference
+  created_at timestamp [default: `now()`]
+  
+  Note: 'Symbol references for call/usage graphs and dependency tracking'
+  indexes {
+    from_symbol_id [name: 'idx_symbolref_from']
+    to_symbol_id [name: 'idx_symbolref_to']
+    (repo_id, kind) [name: 'idx_symbolref_repo_kind']
+  }
+}
+
+// ============================================
+// EMBEDDINGS & VECTOR SEARCH
+// ============================================
+
+Table Embedding {
+  id string [primary key]
+  repo_id string [ref: > Repo.id]
+  file_path string
+  node_path string [null]
+  chunk_text string
+  source_text text
+  summary text [null] // Factual summary (max 40 words)
+  vector_id string [null] // External vector DB ID (Pinecone, Milvus)
+  vector vector(1536) [null] // pgvector column for similarity search
+  confidence string [default: 'medium'] // "high", "medium", "low"
+  s3_ast_key string [null] // Reference to AST JSON in S3
+  node_id string [null, ref: > Node.id]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'Vector embeddings for semantic search and RAG'
+  indexes {
+    (repo_id, file_path) [name: 'idx_embedding_repo_path']
+    confidence [name: 'idx_embedding_confidence']
+    node_id [name: 'idx_embedding_node']
+  }
+}
+
+// ============================================
+// REQUIREMENTS ENGINEERING
+// ============================================
+
+Table Project {
+  id string [primary key]
+  tenant_id string [ref: > Tenant.id]
+  owner_id string [ref: > User.id]
+  name string
+  description text [null]
+  status string // "ACTIVE", "ARCHIVED", "DELETED"
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Project container for repositories and requirements'
+  indexes {
+    tenant_id [name: 'idx_project_tenant']
+    owner_id [name: 'idx_project_owner']
+  }
+}
+
+Table Requirement {
+  id string [primary key]
+  project_id string [null, ref: > Project.id]
+  repo_id string [null, ref: > Repo.id]
+  title string
+  text text
+  type string [default: 'feature'] // "feature" | "suggestion"
+  status string [default: 'pending'] // "pending" | "accepted" | "rejected"
+  requirement_id string [null] // External ID like "REQ-123"
+  vector_id string [null] // Vector embedding ID
+  confidence string [default: 'medium']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Requirements extracted from PRDs, tickets, documents'
+  indexes {
+    requirement_id [name: 'idx_requirement_external_id']
+    repo_id [name: 'idx_requirement_repo']
+    project_id [name: 'idx_requirement_project']
+    (type, status) [name: 'idx_requirement_type_status']
+  }
+}
+
+Table RequirementMatch {
+  id string [primary key]
+  requirement_id string [ref: > Requirement.id]
+  node_id string [ref: > Node.id]
+  match_score float
+  match_types string[] // ["symbol", "semantic", "structural", "verified"]
+  verification_trace json [null] // Detailed verification results
+  confidence string
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Links requirements to matched code nodes with similarity scores'
+  indexes {
+    (requirement_id, node_id) [unique, name: 'idx_requirementmatch_unique']
+    requirement_id [name: 'idx_requirementmatch_req']
+    match_score [name: 'idx_requirementmatch_score']
+  }
+}
+
+Table RequirementVersion {
+  id string [primary key]
+  requirement_id string [ref: > Requirement.id]
+  version_number integer
+  title string
+  text text
+  change_summary text [null]
+  changed_by string [null, ref: > User.id]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'Version history for requirements (from RequirementsVersioningService)'
+  indexes {
+    (requirement_id, version_number) [unique, name: 'idx_reqversion_unique']
+    requirement_id [name: 'idx_reqversion_req']
+  }
+}
+
+Table ComplianceReport {
+  id string [primary key]
+  project_id string [ref: > Project.id]
+  report_type string // "standards", "coverage", "traceability"
+  overall_compliance float
+  requirements_coverage float
+  traceability_complete boolean
+  all_requirements_tracked boolean
+  metrics json
+  recommendations json [null]
+  generated_at timestamp [default: `now()`]
+  
+  Note: 'Compliance reports from ComplianceService'
+  indexes {
+    project_id [name: 'idx_compliancereport_project']
+    generated_at [name: 'idx_compliancereport_generated']
+  }
+}
+
+Table DriftDetection {
+  id string [primary key]
+  requirement_id string [ref: > Requirement.id]
+  severity string // "critical", "high", "medium", "low"
+  old_score float
+  new_score float
+  detected_at timestamp [default: `now()`]
+  resolved_at timestamp [null]
+  
+  Note: 'Requirements drift detection from DriftDetectionService'
+  indexes {
+    requirement_id [name: 'idx_driftdetection_req']
+    (severity, resolved_at) [name: 'idx_driftdetection_severity']
+  }
+}
+
+Table GapAnalysis {
+  id string [primary key]
+  project_id string [ref: > Project.id]
+  requirement_id string [null, ref: > Requirement.id]
+  gap_type string // "missing_implementation", "incomplete", "untracked"
+  priority string // "high", "medium", "low"
+  effort_estimate string // "small", "medium", "large"
+  suggestions text [null]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'Gap analysis results from GapAnalysisService'
+  indexes {
+    project_id [name: 'idx_gapanalysis_project']
+    requirement_id [name: 'idx_gapanalysis_req']
+    priority [name: 'idx_gapanalysis_priority']
+  }
+}
+
+// ============================================
+// MULTI-TENANCY & USER MANAGEMENT
+// ============================================
+
+Table User {
+  id string [primary key]
+  email string [unique]
+  username string [unique, null]
+  full_name string [null]
+  avatar_url string [null]
+  password_hash string [null]
+  role string [default: 'USER'] // "USER", "ADMIN", "SUPER_ADMIN"
+  is_verified boolean [default: false]
+  verification_level integer [default: 0]
+  last_login timestamp [null]
+  deleted_at timestamp [null] // Soft delete
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'User accounts with role-based access control'
+}
+
+Table Tenant {
+  id string [primary key]
+  name string
+  slug string [unique] // Used in URLs like /tenant-slug
+  logo_url string [null]
+  theme_color string [null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Multi-tenant organization/workspace'
+}
+
+Table TenantUser {
+  id string [primary key]
+  tenant_id string [ref: > Tenant.id]
+  user_id string [ref: > User.id]
+  role string [default: 'USER'] // "USER", "ADMIN", "SUPER_ADMIN"
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Many-to-many relationship between users and tenants'
+  indexes {
+    (tenant_id, user_id) [unique, name: 'idx_tenantuser_unique']
+  }
+}
+
+// ============================================
+// REPOSITORY MANAGEMENT (Tenant-scoped)
+// ============================================
+
+Table Repository {
+  id string [primary key]
+  project_id string [ref: > Project.id]
+  tenant_id string [ref: > Tenant.id]
+  name string
+  url string [null]
+  path string [null]
+  branch string [null]
+  language string [null]
+  status string [default: 'PENDING'] // "PENDING", "INDEXING", "INDEXED", "FAILED"
+  last_indexed timestamp [null]
+  last_commit_sha string [null]
+  s3_archive_url string [null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Tenant-scoped repository references (links to Repo)'
+  indexes {
+    project_id [name: 'idx_repository_project']
+    tenant_id [name: 'idx_repository_tenant']
+  }
+}
+
+// ============================================
+// ANALYSIS & AI INTERACTIONS
+// ============================================
+
+Table Analysis {
+  id string [primary key]
+  project_id string [ref: > Project.id]
+  repository_id string [null, ref: > Repository.id]
+  user_id string [ref: > User.id]
+  type string
+  status string
+  data json [null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Analysis results and AI interaction history'
+  indexes {
+    project_id [name: 'idx_analysis_project']
+    user_id [name: 'idx_analysis_user']
+  }
+}
+
+Table Citation {
+  id string [primary key]
+  query_id string [null] // Reference to search/query
+  embedding_id string [null, ref: > Embedding.id]
+  node_id string [null, ref: > Node.id]
+  file_path string
+  start_line integer
+  end_line integer
+  code_snippet text
+  similarity_score float [null]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'Citations for AI responses (from CitationService)'
+  indexes {
+    query_id [name: 'idx_citation_query']
+    embedding_id [name: 'idx_citation_embedding']
+    node_id [name: 'idx_citation_node']
+  }
+}
+
+Table HallucinationDetection {
+  id string [primary key]
+  query text
+  response text
+  confidence_score float
+  detected_issues json [null]
+  verified boolean [default: false]
+  created_at timestamp [default: `now()`]
+  
+  Note: 'Hallucination detection results (from HallucinationDetectionService)'
+  indexes {
+    verified [name: 'idx_hallucination_verified']
+    created_at [name: 'idx_hallucination_created']
+  }
+}
+
+// ============================================
+// RELATIONSHIPS SUMMARY
+// ============================================
+
+// Git Provider Chain:
+// Installation -> Repo -> Commit, FileBlob, ParseJob
+
+// Code Structure Chain:
+// Repo -> Node -> Symbol -> SymbolRef (call graph)
+// Repo -> Embedding -> Node (vector search)
+
+// Requirements Chain:
+// Project -> Requirement -> RequirementMatch -> Node
+// Requirement -> RequirementVersion (versioning)
+// Requirement -> DriftDetection (drift tracking)
+// Project -> GapAnalysis (gap identification)
+// Project -> ComplianceReport (compliance metrics)
+
+// Multi-tenancy Chain:
+// Tenant -> TenantUser -> User
+// Tenant -> Project -> Repository
+// Project -> Requirement, Analysis
+// User -> Project, Analysis
+

@@ -177,8 +177,9 @@ export default function DashboardLayout({
       <div className='bg-sidebar flex min-h-screen pt-16'>
         {/* Mobile sidebar toggle */}
         <button
-          className='bg-primary/90 text-primary-foreground fixed top-20 left-4 z-50 rounded-lg p-2 shadow-lg md:hidden'
+          className='bg-primary/90 text-primary-foreground fixed top-20 left-4 z-50 flex h-11 w-11 items-center justify-center rounded-lg shadow-lg md:hidden'
           onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
         >
           {sidebarOpen ? (
             <XIcon className='h-5 w-5' />
