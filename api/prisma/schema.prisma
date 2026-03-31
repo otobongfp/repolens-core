@@ -128,8 +128,9 @@ model Node {
   embeddings         Embedding[]
   fromRefs           SymbolRef[]        @relation("SymbolRefFrom")
   toRefs             SymbolRef[]        @relation("SymbolRefTo")
-  requirementMatches RequirementMatch[]
-  citations          Citation[]
+  requirementMatches     RequirementMatch[]
+  requirementGroundTruth RequirementGroundTruth[]
+  citations              Citation[]
 
   @@unique([repoId, filePath, nodePath, blobSha])
   @@index([repoId, nodeType])
@@ -219,13 +220,14 @@ model Project {
   status            ProjectStatus
   tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner             User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  repositories      Repository[]
-  analyses          Analysis[]
-  requirements      Requirement[]
-  complianceReports ComplianceReport[]
-  gapAnalyses       GapAnalysis[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  repositories        Repository[]
+  analyses            Analysis[]
+  requirements        Requirement[]
+  complianceReports   ComplianceReport[]
+  gapAnalyses         GapAnalysis[]
+  requirementGroundTruth RequirementGroundTruth[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([tenantId])
   @@index([ownerId])
@@ -244,12 +246,13 @@ model Requirement {
   requirementId      String? // External ID like "REQ-123"
   vectorId           String? // Vector embedding ID
   confidence         String               @default("medium")
-  requirementMatches RequirementMatch[]
-  versions           RequirementVersion[]
-  driftDetections    DriftDetection[]
-  gapAnalyses        GapAnalysis[]
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  requirementMatches   RequirementMatch[]
+  requirementGroundTruth RequirementGroundTruth[]
+  versions             RequirementVersion[]
+  driftDetections      DriftDetection[]
+  gapAnalyses          GapAnalysis[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
   @@index([requirementId])
   @@index([repoId])
@@ -267,12 +270,73 @@ model RequirementMatch {
   matchTypes        String[] // ["symbol", "semantic", "structural", "verified"]
   verificationTrace Json? // Detailed verification results
   confidence        String
+  matcherType       String      // 'hybrid' | 'embedding' | 'tfidf'
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  @@unique([requirementId, nodeId])
+  @@unique([requirementId, nodeId, matcherType])
   @@index([requirementId])
+  @@index([requirementId, matcherType])
   @@index([matchScore])
+}
+
+// Expert-annotated true links for precision/recall/F1 evaluation
+model RequirementGroundTruth {
+  id            String      @id @default(cuid())
+  projectId     String
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  nodeId        String
+  node          Node        @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  source        String?     // e.g. "expert", "import", "manual"
+  notes         String?     @db.Text
+  createdAt     DateTime    @default(now())
+
+  @@unique([requirementId, nodeId])
+  @@index([projectId])
+  @@index([requirementId])
+}
+
+// Stored evaluation runs for baseline comparison and research export
+model EvaluationRun {
+  id          String   @id @default(uuid())
+  projectId   String
+  matcherType String   // 'hybrid' | 'embedding' | 'tfidf'
+  threshold   Float
+  tp          Int
+  fp          Int
+  fn          Int
+  precision   Float
+  recall      Float
+  f1          Float
+  coverage    Float
+  datasetType String   // 'validation' | 'test'
+  createdAt   DateTime @default(now())
+
+  @@index([projectId, matcherType])
+}
+
+// Per-run experiment results for ablation studies and statistical testing
+model TraceabilityExperimentResult {
+  id             String   @id @default(uuid())
+  projectId      String
+  repositoryId   String?  // optional: null = project-level aggregate
+  matcherType    String
+  threshold      Float
+  tp             Int
+  fp             Int
+  fn             Int
+  precision      Float
+  recall         Float
+  f1             Float
+  coverage       Float
+  useGraphProp   Boolean? // was graph propagation enabled
+  useSymbolMatch Boolean? // was symbol matching enabled
+  createdAt      DateTime @default(now())
+
+  @@index([projectId, matcherType])
+  @@index([repositoryId, matcherType])
 }
 
 model RequirementVersion {

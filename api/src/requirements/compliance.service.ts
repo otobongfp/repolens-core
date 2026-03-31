@@ -36,6 +36,7 @@ export class ComplianceService {
           requirements: {
             include: {
               requirementMatches: {
+                where: { matcherType: 'hybrid' },
                 include: {
                   node: true,
                 },

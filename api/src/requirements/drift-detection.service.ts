@@ -27,6 +27,7 @@ export class DriftDetectionService {
         where: { projectId },
         include: {
           requirementMatches: {
+            where: { matcherType: 'hybrid' },
             include: {
               node: {
                 include: {
@@ -57,8 +58,23 @@ export class DriftDetectionService {
         driftedRequirements,
         stableRequirements,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to detect drift:', error);
+
+      // Handle database connection errors specifically
+      if (error.code === 'P1001' || error.message?.includes("Can't reach database server")) {
+        throw new Error(
+          'Database connection failed. Please check your database connection settings and ensure the database server is running.'
+        );
+      }
+
+      // Handle Prisma errors
+      if (error.code?.startsWith('P')) {
+        throw new Error(
+          `Database error: ${error.message || 'Failed to connect to database'}`
+        );
+      }
+
       throw new Error(
         'Failed to detect drift: ' + (error instanceof Error ? error.message : String(error))
       );
@@ -153,14 +169,19 @@ export class DriftDetectionService {
       const avgNewScore =
         driftedMatches.reduce((sum, m) => sum + m.currentScore, 0) / driftedMatches.length;
 
-      await this.prisma.driftDetection.create({
-        data: {
-          requirementId: requirement.id,
-          severity,
-          oldScore: avgOldScore,
-          newScore: avgNewScore,
-        },
-      });
+      try {
+        await this.prisma.driftDetection.create({
+          data: {
+            requirementId: requirement.id,
+            severity,
+            oldScore: avgOldScore,
+            newScore: avgNewScore,
+          },
+        });
+      } catch (dbError: any) {
+        this.logger.warn(`Failed to save drift detection record:`, dbError);
+        // Continue even if we can't save the record
+      }
     }
 
     return {

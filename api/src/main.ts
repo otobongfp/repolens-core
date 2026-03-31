@@ -11,12 +11,13 @@ import { MonitoringInterceptor } from './common/monitoring/monitoring.intercepto
 import { FetcherWorker } from './workers/fetcher.worker';
 import { ParserWorker } from './workers/parser.worker';
 import { EmbeddingWorker } from './workers/embedding.worker';
+import { RequirementsWorker } from './requirements/requirements.worker';
 
 async function bootstrap() {
   // Auto-run migrations on startup (development only)
   if (process.env.AUTO_MIGRATE === 'true' || process.env.NODE_ENV !== 'production') {
     try {
-      console.log('🔄 Checking database migrations...');
+      console.log('Checking database migrations...');
       const migrateStatus = execSync('npx prisma migrate status', {
         cwd: process.cwd(),
         encoding: 'utf-8',
@@ -24,18 +25,20 @@ async function bootstrap() {
       });
 
       if (migrateStatus.includes('have not yet been applied')) {
-        console.log('📦 Applying pending migrations...');
+        console.log('Applying pending migrations...');
         execSync('npx prisma migrate deploy', {
           cwd: process.cwd(),
           stdio: 'inherit',
         });
-        console.log('✅ Migrations applied successfully');
+        console.log('Migrations applied successfully');
       } else {
-        console.log('✅ Database is up to date');
+        console.log('Database is up to date');
       }
     } catch (error: any) {
-      console.warn('⚠️  Migration check failed (this is OK if database is not accessible yet):', error.message);
-      // Don't fail startup if migrations can't run - allow manual migration
+      console.warn(
+        'Migration check failed (this is OK if database is not accessible yet):',
+        error.message
+      );
     }
   }
 
@@ -45,10 +48,8 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
-  // Security middleware
   app.use(helmet());
 
-  // CORS
   app.enableCors({
     origin: configService.getCorsOrigins(),
     credentials: true,
@@ -56,10 +57,6 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // Auth middleware removed - not available in core-only mode
-  // For auth, use the cloud-api app instead
-
-  // Global prefix
   app.setGlobalPrefix('api');
 
   // Validation pipe
@@ -82,56 +79,53 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('RepoLens API (Core)')
     .setDescription(
-      'AI-powered codebase analysis and requirements engineering platform - Core version (no auth)'
+      'Codebase analysis and requirements engineering platform - Core version (no auth)'
     )
     .setVersion('1.0')
     .addBearerAuth()
     // Auth tag removed - not available in core
     .addTag('projects', 'Project management')
     .addTag('repositories', 'Repository analysis')
-    .addTag('ai', 'AI analysis')
+    .addTag('ai', 'Analysis')
     .addTag('requirements', 'Requirements engineering')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  // Initialize workers
-  const queueService = app.get(QueueService);
-  const fetcherWorker = app.get(FetcherWorker);
-  const parserWorker = app.get(ParserWorker);
-  const embeddingWorker = app.get(EmbeddingWorker);
+  const disableWorkers = process.env.DISABLE_WORKERS === 'true' || process.env.DISABLE_WORKERS === '1';
 
-  // Register workers with queue
-  queueService.createWorker('webhook-events', async (job) => {
-    // Webhook events are processed by fetcher
-    return fetcherWorker.process(job);
-  });
+  if (!disableWorkers) {
+    const queueService = app.get(QueueService);
+    const fetcherWorker = app.get(FetcherWorker);
+    const parserWorker = app.get(ParserWorker);
+    const embeddingWorker = app.get(EmbeddingWorker);
+    const requirementsWorker = app.get(RequirementsWorker);
 
-  queueService.createWorker('fetch-files', async (job) => {
-    return fetcherWorker.process(job);
-  });
-
-  queueService.createWorker('parse-files', async (job) => {
-    return parserWorker.process(job);
-  });
-
-  queueService.createWorker('embed-chunks', async (job) => {
-    return embeddingWorker.process(job);
-  });
+    queueService.createWorker('webhook-events', async (job) => fetcherWorker.process(job));
+    queueService.createWorker('fetch-files', async (job) => fetcherWorker.process(job));
+    queueService.createWorker('parse-files', async (job) => parserWorker.process(job));
+    queueService.createWorker('embed-chunks', async (job) => embeddingWorker.process(job));
+    queueService.createWorker('match-requirements', async (job) => requirementsWorker.process(job), { concurrency: 1 });
+    queueService.createWorker('resolve-cross-file-refs', async (job) => {
+      await parserWorker.resolveCrossFileRefs(job.data.repoId);
+    });
+  }
 
   const port = configService.getPort();
   await app.listen(port);
 
-  console.log(`🚀 RepoLens Core API is running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+  console.log(`RepoLens Core API is running on: http://localhost:${port}`);
+  console.log(`API Documentation: http://localhost:${port}/api/docs`);
   console.log(
-    `📦 Storage Mode: ${process.env.LOCAL_STORAGE === 'true' ? 'LOCAL (any-bucket)' : 'S3'}`
+    `Storage Mode: ${process.env.LOCAL_STORAGE === 'true' ? 'LOCAL (any-bucket)' : 'S3'}`
   );
-  console.log(
-    `⚠️  Note: This is core-only mode. Auth, billing, and integrations are not available.`
-  );
-  console.log(`✅ Workers registered: fetcher, parser, embedding`);
+  console.log(`Note: This is core-only mode. Auth, billing, and integrations are not available.`);
+  if (disableWorkers) {
+    console.log('Workers are DISABLED (DISABLE_WORKERS=true). Fetcher, parser, and embedding will not run.');
+  } else {
+    console.log('Workers registered: fetcher, parser, embedding');
+  }
 }
 
 bootstrap();

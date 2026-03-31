@@ -14,10 +14,10 @@ const execAsync = promisify(exec);
 
 @Injectable()
 export class RepositoriesService {
-  // Core-only mode: Use system defaults for tenant
   private readonly SYSTEM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+  private readonly SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
   private readonly logger = new Logger(RepositoriesService.name);
-  private readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  private readonly MAX_FILE_SIZE = 5 * 1024 * 1024;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -30,7 +30,6 @@ export class RepositoriesService {
   async create(projectId: string, repoData: any) {
     this.logger.log(`Creating repository for project ${projectId}: ${repoData.name || 'unnamed'}`);
 
-    // Ensure system tenant exists
     await this.ensureSystemTenant();
 
     const repo = await this.prisma.repository.create({
@@ -59,6 +58,67 @@ export class RepositoriesService {
     }
 
     return repo;
+  }
+
+  async analyzeDirect(url?: string, projectName?: string, localPath?: string) {
+    this.logger.log(`Direct analysis requested for URL: ${url || 'N/A'}, LocalPath: ${localPath || 'N/A'}`);
+
+    // 1. Ensure project exists or create a default one
+    await this.ensureSystemTenant();
+    
+    let targetProjectId: string;
+    const defaultProject = await this.prisma.project.findFirst({
+      where: { name: 'Default Project' },
+    });
+    
+    if (defaultProject) {
+      targetProjectId = defaultProject.id;
+    } else {
+      const newProject = await this.prisma.project.create({
+        data: {
+          name: 'Default Project',
+          description: 'Automatically created for quick analysis',
+          tenantId: this.SYSTEM_TENANT_ID,
+          ownerId: this.SYSTEM_USER_ID,
+          status: 'ACTIVE',
+        },
+      });
+      targetProjectId = newProject.id;
+    }
+
+    const name = projectName || (url ? path.basename(url) : (localPath ? path.basename(localPath) : 'quick-repo'));
+    
+    // 2. Create repository record
+    const repo = await this.create(targetProjectId, {
+      url: url || undefined,
+      path: localPath || undefined,
+      name: name,
+    });
+
+    // 3. For local folders, setup Repo record and analyze
+    if (localPath) {
+      await this.prisma.repo.upsert({
+        where: { id: repo.id },
+        create: {
+          id: repo.id,
+          provider: 'local',
+          owner: 'local',
+          name: path.basename(localPath),
+          fullName: `local/${path.basename(localPath)}`,
+          url: '',
+          latestSha: 'local',
+        },
+        update: {},
+      });
+
+      return this.analyze(repo.id);
+    }
+
+    return {
+      message: 'Repository creation and sync started',
+      repositoryId: repo.id,
+      projectId: targetProjectId,
+    };
   }
 
   private async cloneRepository(repo: any, url: string, branch: string) {
@@ -225,9 +285,24 @@ export class RepositoriesService {
     }
 
     // Get the Repo record (different from Repository)
-    const repoRecord = await this.prisma.repo.findUnique({
+    let repoRecord = await this.prisma.repo.findUnique({
       where: { id },
     });
+
+    if (!repoRecord && repo.path) {
+      this.logger.log(`Creating missing Repo record for local repository ${id}`);
+      repoRecord = await this.prisma.repo.create({
+        data: {
+          id: repo.id,
+          provider: 'local',
+          owner: 'local',
+          name: path.basename(repo.path),
+          fullName: `local/${path.basename(repo.path)}`,
+          url: '',
+          latestSha: 'local',
+        },
+      });
+    }
 
     if (!repoRecord) {
       throw new NotFoundException('Repo record not found. Repository may not be cloned yet.');
@@ -281,14 +356,31 @@ export class RepositoriesService {
             },
           });
 
+          const relativePath = path.relative(repo.path, filePath);
+
           if (existingBlob) {
-            // File already processed, skip
+            if (existingBlob.parsedAt) {
+              // File already successfully parsed, skip
+              continue;
+            }
+            
+            this.logger.log(`FileBlob exists for ${relativePath} but not parsed. Re-enqueuing...`);
+            
+            // Re-enqueue parse job for existing blob
+            await this.queue.enqueue('parse-files', {
+              repoId: id,
+              sha,
+              path: relativePath,
+              blobSha,
+            });
+            
+            processedCount++;
             continue;
           }
 
           // Store file in S3
-          const relativePath = path.relative(repo.path, filePath);
           const s3Key = await this.s3.storeFile(id, sha, relativePath, content);
+
 
           // Create FileBlob record
           const fileBlob = await this.prisma.fileBlob.create({
@@ -315,6 +407,15 @@ export class RepositoriesService {
           skippedCount++;
         }
       }
+
+      // Enqueue deferred cross-file symbol resolution.
+      // Delayed by 30s to allow concurrent parse workers to finish first;
+      // the resolver is idempotent so running early just means fewer refs found.
+      await this.queue.enqueue(
+        'resolve-cross-file-refs',
+        { repoId: id },
+        { delay: 30_000, jobId: `resolve-xfile-${id}-${Date.now()}` }
+      );
 
       // Update status back to INDEXED
       await this.prisma.repository.update({
@@ -436,5 +537,38 @@ export class RepositoriesService {
         },
       });
     }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: this.SYSTEM_USER_ID },
+    });
+
+    if (!user) {
+      await this.prisma.user.create({
+        data: {
+          id: this.SYSTEM_USER_ID,
+          email: 'system@repolens.ai',
+          username: 'system',
+        },
+      });
+    }
+  }
+
+  async getLocalCodebases() {
+    const fs = require('fs');
+    const path = require('path');
+    const codebasesPath = path.join(process.cwd(), 'codebases');
+    
+    if (!fs.existsSync(codebasesPath)) {
+      return [];
+    }
+
+    const dirs = fs.readdirSync(codebasesPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => ({
+        name: dirent.name,
+        path: path.join(codebasesPath, dirent.name)
+      }));
+
+    return dirs;
   }
 }

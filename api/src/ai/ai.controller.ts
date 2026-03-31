@@ -28,22 +28,21 @@ export class AIController {
   @Throttle({ strict: { limit: 20, ttl: 60000 } })
   @ApiOperation({ summary: 'Ask codebase question' })
   async ask(@Body() body: { graphData: any; question: string; repoId?: string }) {
-    const answer = await this.aiService.answerQuestion(body.graphData, body.question);
-    
-    // Validate response for hallucinations if repoId provided
+    const answer = await this.aiService.answerQuestion(body.graphData, body.question, body.repoId);
+
     if (body.repoId && answer.answer) {
       const validation = await this.hallucinationDetection.detectHallucination(
         answer.answer,
         body.repoId,
         body.question
       );
-      
+
       return {
         ...answer,
         validation,
       };
     }
-    
+
     return answer;
   }
 
@@ -53,4 +52,3 @@ export class AIController {
     return this.aiService.getStatus();
   }
 }
-

@@ -2,6 +2,21 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../common/database/prisma.service';
 import { TensorService } from '../common/tensor/tensor.service';
 import { SearchService } from '../search/search.service';
+import { QueueService } from '../common/queue/queue.service';
+import {
+  HybridMatcher,
+  EmbeddingOnlyMatcher,
+  TfidfMatcher,
+  StructuralOnlyMatcher,
+  type MatcherType,
+  type MatcherStrategy,
+  type ExperimentMatchOptions,
+} from './matchers';
+import * as mammoth from 'mammoth';
+import { REQUIREMENTS_SYSTEM_PROMPT, getRequirementsExtractionPrompt } from '../common/prompts';
+
+const pdfParseModule = require('pdf-parse');
+const pdfParse = pdfParseModule.PDFParse || pdfParseModule;
 
 interface RetryOptions {
   maxRetries?: number;
@@ -13,13 +28,32 @@ interface RetryOptions {
 export class RequirementsService {
   private readonly logger = new Logger(RequirementsService.name);
   private readonly DEFAULT_MAX_RETRIES = 3;
-  private readonly DEFAULT_RETRY_DELAY = 1000; // 1 second
+  private readonly DEFAULT_RETRY_DELAY = 1000;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly tensor: TensorService,
-    private readonly search: SearchService
+    private readonly search: SearchService,
+    private readonly hybridMatcher: HybridMatcher,
+    private readonly embeddingOnlyMatcher: EmbeddingOnlyMatcher,
+    private readonly tfidfMatcher: TfidfMatcher,
+    private readonly structuralOnlyMatcher: StructuralOnlyMatcher,
+    private readonly queue: QueueService
   ) {}
+
+  private getMatcher(matcherType: MatcherType): MatcherStrategy {
+    switch (matcherType) {
+      case 'embedding':
+        return this.embeddingOnlyMatcher;
+      case 'tfidf':
+        return this.tfidfMatcher;
+      case 'structural-only':
+        return this.structuralOnlyMatcher;
+      case 'hybrid':
+      default:
+        return this.hybridMatcher;
+    }
+  }
 
   /**
    * Retry wrapper with exponential backoff for fault tolerance
@@ -60,37 +94,80 @@ export class RequirementsService {
   }
 
   /**
+   * Extract text from uploaded file (PDF or DOCX)
+   */
+  async extractTextFromFile(file: Express.Multer.File): Promise<string> {
+    this.logger.log(`Extracting text from file: ${file.originalname} (${file.mimetype})`);
+
+    try {
+      if (file.mimetype === 'application/pdf' || file.originalname.endsWith('.pdf')) {
+        const parser = new pdfParse({ data: file.buffer });
+        const result = await parser.getText();
+        this.logger.log(`Extracted ${result.text.length} characters from PDF`);
+        return result.text;
+      } else if (
+        file.mimetype ===
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.originalname.endsWith('.docx')
+      ) {
+        const result = await mammoth.extractRawText({ buffer: file.buffer });
+        this.logger.log(`Extracted ${result.value.length} characters from DOCX`);
+        return result.value;
+      } else if (
+        file.mimetype === 'text/plain' ||
+        file.originalname.endsWith('.txt') ||
+        file.originalname.endsWith('.md')
+      ) {
+        return file.buffer.toString('utf-8');
+      } else {
+        throw new Error(
+          `Unsupported file type: ${file.mimetype}. Supported types: PDF, DOCX, TXT, MD`
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Failed to extract text from file:`, error);
+      throw new Error(
+        `Failed to extract text from file: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
    * Extract requirements from document with robust error handling
    */
-  async extractRequirements(documentContent: string, projectId?: string) {
+  async extractRequirements(
+    documentContent: string,
+    projectId?: string,
+    options?: { autoMatch?: boolean; matcherType?: MatcherType }
+  ) {
     this.logger.log(`Extracting requirements for project ${projectId}`);
+    this.logger.debug(`Document content length: ${documentContent?.length || 0} characters`);
+    this.logger.debug(`Document preview: ${documentContent?.substring(0, 200) || 'empty'}...`);
 
     if (!documentContent || documentContent.trim().length === 0) {
       throw new Error('Document content is required');
     }
 
+    if (
+      documentContent.includes('[File:') ||
+      documentContent.includes('[PDF File:') ||
+      documentContent.includes('[DOCX File:')
+    ) {
+      this.logger.warn('Document content appears to be a placeholder, not actual content');
+      throw new Error(
+        'Please provide the actual document content, not a file placeholder. Extract text from your file and paste it.'
+      );
+    }
+
     try {
-      // Use Tensor service to extract requirements from document with retry
-      const extractionPrompt = `Extract requirements from the following document. 
-For each requirement, provide:
-1. A clear title (max 10 words)
-2. The requirement text
-3. Whether it's a feature requirement or a suggestion
-4. Priority level (high, medium, low)
-5. Estimated complexity (simple, moderate, complex)
-
-Document:
-${documentContent.substring(0, 10000)}${documentContent.length > 10000 ? '...' : ''}
-
-Format as JSON array with: {title, text, type: "feature"|"suggestion", priority: "high"|"medium"|"low", complexity: "simple"|"moderate"|"complex"}`;
+      const extractionPrompt = getRequirementsExtractionPrompt(documentContent);
 
       const chatResponse = await this.withRetry(
         () =>
           this.tensor.chat([
             {
               role: 'system',
-              content:
-                'You are a requirements extraction assistant. Extract requirements from documents and format them as JSON. Be precise and factual.',
+              content: REQUIREMENTS_SYSTEM_PROMPT,
             },
             { role: 'user', content: extractionPrompt },
           ]),
@@ -98,7 +175,6 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
         'Requirements extraction'
       );
 
-      // Parse extracted requirements with robust error handling
       let extractedRequirements: Array<{
         title: string;
         text: string;
@@ -110,14 +186,12 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
       try {
         const responseText = chatResponse.content || JSON.stringify(chatResponse);
 
-        // Try multiple JSON extraction strategies
         const jsonMatch = responseText.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
           extractedRequirements = JSON.parse(jsonMatch[0]);
         } else if (responseText.trim().startsWith('[')) {
           extractedRequirements = JSON.parse(responseText);
         } else {
-          // Fallback: try to extract from markdown code blocks
           const codeBlockMatch = responseText.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
           if (codeBlockMatch) {
             extractedRequirements = JSON.parse(codeBlockMatch[1]);
@@ -129,7 +203,6 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
           throw new Error('No requirements extracted');
         }
 
-        // Validate each requirement has required fields
         extractedRequirements = extractedRequirements.filter(
           (req) => req.title && req.text && req.type
         );
@@ -181,12 +254,15 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
           );
 
           if (embedResponse.vectors && embedResponse.vectors.length > 0) {
+            const vector = embedResponse.vectors[0];
             await this.prisma.requirement.update({
               where: { id: req.id },
               data: {
                 vectorId: `req_${req.id}_${Date.now()}`,
               },
             });
+            // Persist the actual vector in the new column
+            await this.prisma.storeVector(req.id, vector, 'Requirement');
           }
         } catch (embedError) {
           this.logger.warn(`Failed to embed requirement ${req.id}:`, embedError);
@@ -197,8 +273,17 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
       // Wait for all embeddings, but don't fail if some fail
       await Promise.allSettled(embeddingPromises);
 
+      // Trigger auto-match in background if requested
+      if (options?.autoMatch && projectId) {
+        this.logger.log(`Enqueuing background match job for project ${projectId}`);
+        await this.queue.enqueue('match-requirements', {
+          projectId,
+          matcherType: options.matcherType || 'hybrid',
+        });
+      }
+
       return {
-        message: `Extracted ${requirements.length} requirement(s)`,
+        message: `Extracted ${requirements.length} requirement(s)${options?.autoMatch ? ' and enqueued background matching' : ''}`,
         requirementId: requirements[0]?.id,
         requirements: requirements.map((r) => ({
           id: r.id,
@@ -240,10 +325,19 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
   }
 
   /**
-   * Match requirements to code with comprehensive error handling
+   * Match requirements to code with comprehensive error handling.
+   * Uses the given matcher strategy (default hybrid). Matches are stored with matcherType
+   * so different strategies do not overwrite each other.
+   * Matching is independent of ground truth: GT is never read or used here; it is only used
+   * during evaluation (metrics / threshold tuning / compare).
    */
-  async matchRequirements(requirementId: string, projectId?: string) {
-    this.logger.log(`Matching requirement ${requirementId} for project ${projectId}`);
+  async matchRequirements(
+    requirementId: string,
+    projectId?: string,
+    matcherType: MatcherType = 'hybrid',
+    options?: ExperimentMatchOptions
+  ) {
+    this.logger.log(`Matching requirement ${requirementId} for project ${projectId} (matcher: ${matcherType})`);
 
     const requirement = await this.prisma.requirement.findUnique({
       where: { id: requirementId },
@@ -253,83 +347,61 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
       throw new Error('Requirement not found');
     }
 
+    const effectiveProjectId = projectId ?? requirement.projectId ?? undefined;
+    if (!effectiveProjectId) {
+      return {
+        message: 'projectId is required for matching',
+        requirementId,
+        matches: [],
+      };
+    }
+
     try {
-      // Get project repositories to find matching code
-      let repoIds: string[] = [];
+      const matcher = this.getMatcher(matcherType);
 
-      if (projectId) {
-        const project = await this.prisma.project.findUnique({
-          where: { id: projectId },
-          include: { repositories: true },
-        });
-
-        if (project) {
-          const allRepos = await this.prisma.repo.findMany({
-            where:
-              project.repositories.length > 0
-                ? {
-                    url: {
-                      in: project.repositories
-                        .map((r) => r.url)
-                        .filter((url) => url !== null) as string[],
-                    },
-                  }
-                : {},
-          });
-          repoIds = allRepos.map((r) => r.id);
-        }
-      } else if (requirement.repoId) {
-        repoIds = [requirement.repoId];
-      }
-
-      if (repoIds.length === 0) {
-        return {
-          message: 'No repositories found for matching',
-          requirementId,
-          matches: [],
-        };
-      }
-
-      // Get or generate embedding for requirement
-      let requirementEmbedding: number[] | null = null;
-
-      if (requirement.vectorId) {
-        requirementEmbedding = await this.getRequirementEmbedding(requirement.id);
-      }
-
-      if (!requirementEmbedding) {
-        // Generate embedding with retry
-        const embedResponse = await this.withRetry(
-          () => this.tensor.embed([requirement.text]),
-          { maxRetries: 2 },
-          'Requirement embedding generation'
+      // Check if requirement has a persistent vector
+      let queryInput: string | number[] = requirement.text;
+      try {
+        const rawResult = await this.prisma.$queryRawUnsafe<Array<{ vector: string | null }>>(
+          `SELECT vector::text FROM "Requirement" WHERE id = $1`,
+          requirement.id
         );
-
-        if (embedResponse.vectors && embedResponse.vectors.length > 0) {
-          requirementEmbedding = embedResponse.vectors[0];
-          await this.prisma.requirement.update({
-            where: { id: requirement.id },
-            data: { vectorId: `req_${requirement.id}_${Date.now()}` },
-          });
+        const vectorStr = rawResult[0]?.vector;
+        if (vectorStr) {
+          // Parse pgvector string format "[1.2, 3.4, ...]"
+          queryInput = vectorStr
+            .replace(/[\[\]]/g, '')
+            .split(',')
+            .map(Number);
+          this.logger.debug(`Reusing persisted vector for requirement ${requirement.id}`);
         }
+      } catch (err) {
+        this.logger.warn(`Failed to fetch persisted vector for requirement ${requirement.id}, falling back to text`, err);
       }
 
-      // Search for matching code nodes using semantic similarity
-      const matchingNodes = await this.findMatchingNodes(
-        requirement.text,
-        requirementEmbedding,
-        repoIds
+      const matchingNodes = await matcher.match(
+        {
+          id: requirement.id,
+          text: requirement.text,
+          vector: Array.isArray(queryInput) ? queryInput : undefined,
+          projectId: requirement.projectId,
+        },
+        effectiveProjectId,
+        options
       );
 
-      // Create RequirementMatch records with transaction
       const matches = await this.prisma.$transaction(
         async (tx) => {
           return Promise.all(
             matchingNodes.map(async (node) => {
-              const matchScore = node.similarity || 0.5;
+              // Preserve legitimate 0.0 scores (do not coerce to fallback).
+              // Normalize to [0,1] so metric thresholds are comparable across matchers.
+              const rawScore =
+                typeof node.similarity === 'number' && Number.isFinite(node.similarity)
+                  ? node.similarity
+                  : 0;
+              const matchScore = Math.max(0, Math.min(1, rawScore));
               const matchTypes: string[] = [];
-
-              // Determine match types
               if (node.symbolMatch) matchTypes.push('symbol');
               if (matchScore > 0.7) matchTypes.push('semantic');
               if (node.structuralMatch) matchTypes.push('structural');
@@ -338,9 +410,10 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
 
               return tx.requirementMatch.upsert({
                 where: {
-                  requirementId_nodeId: {
+                  requirementId_nodeId_matcherType: {
                     requirementId: requirement.id,
                     nodeId: node.nodeId,
+                    matcherType,
                   },
                 },
                 create: {
@@ -349,6 +422,7 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
                   matchScore,
                   matchTypes,
                   confidence,
+                  matcherType,
                 },
                 update: {
                   matchScore,
@@ -360,12 +434,13 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
             })
           );
         },
-        { timeout: 30000 }
+        { timeout: 300000, maxWait: 60000 } // Expanded transaction timeout to 5 minutes to allow thousands of upserts to settle safely.
       );
 
       return {
         message: `Found ${matches.length} matching code sections`,
         requirementId,
+        matcherType,
         matches: matches.map((m) => ({
           id: m.id,
           nodeId: m.nodeId,
@@ -385,142 +460,147 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
     }
   }
 
-  /**
-   * Find matching nodes using semantic vector search
-   */
-  private async findMatchingNodes(
-    requirementText: string,
-    requirementEmbedding: number[] | null,
-    repoIds: string[]
-  ): Promise<
-    Array<{
-      nodeId: string;
-      similarity: number;
-      symbolMatch?: boolean;
-      structuralMatch?: boolean;
-    }>
-  > {
-    try {
-      // Use semantic search for each repo
-      const allMatches: Array<{
-        id: string;
-        similarity: number;
-        filePath: string;
-        summary: string | null;
-        chunkText: string;
-      }> = [];
+  async matchAllRequirements(
+    projectId: string,
+    matcherType: MatcherType = 'hybrid',
+    options?: ExperimentMatchOptions
+  ) {
+    this.logger.log(`Matching all requirements for project ${projectId} (matcher: ${matcherType})`);
 
-      // Search across all repos
-      for (const repoId of repoIds) {
-        try {
-          const results = await this.search.semanticSearch(
-            requirementText,
-            repoId,
-            10, // Top 10 per repo
-            0.5 // Lower threshold to get more results
-          );
-          allMatches.push(...results);
-        } catch (error) {
-          this.logger.warn(`Semantic search failed for repo ${repoId}, skipping:`, error);
-      }
-    }
-
-      // If no vector search results, fallback to basic search
-      if (allMatches.length === 0) {
-        this.logger.warn('No semantic search results, falling back to basic search');
-    const embeddings = await this.prisma.embedding.findMany({
-      where: repoIds.length > 0 ? { repoId: { in: repoIds } } : {},
-      include: { node: true },
-          take: 100,
+    const requirements = await this.prisma.requirement.findMany({
+      where: { projectId },
+      select: { id: true, title: true },
     });
 
-        return embeddings
-      .map((emb) => {
-            const similarity = this.calculateTextSimilarity(
-            requirementText,
-            emb.summary || emb.chunkText || ''
-          );
-        return {
-          nodeId: emb.nodeId || '',
-          similarity,
-          symbolMatch: this.checkSymbolMatch(requirementText, emb),
-          structuralMatch: false,
-        };
-      })
-          .filter((s) => s.similarity > 0.3 && s.nodeId)
-          .sort((a, b) => b.similarity - a.similarity)
-          .slice(0, 20);
-      }
+    if (requirements.length === 0) {
+      return {
+        message: 'No requirements found for this project',
+        projectId,
+        total: 0,
+        matched: 0,
+        failed: 0,
+        results: [],
+      };
+    }
 
-      // Get full embedding records with nodes
-      const embeddingIds = allMatches.map((m) => m.id);
-      const embeddings = await this.prisma.embedding.findMany({
-        where: { id: { in: embeddingIds } },
-        include: { node: true },
+    const results = [];
+    let matched = 0;
+    let failed = 0;
+
+    // Process requirements in parallel batches to optimize performance
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < requirements.length; i += BATCH_SIZE) {
+      const batch = requirements.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map(async (requirement) => {
+        try {
+          this.logger.log(`Matching requirement ${requirement.id}: ${requirement.title}`);
+          const result = await this.matchRequirements(
+            requirement.id,
+            projectId,
+            matcherType,
+            options
+          );
+          matched++;
+          return {
+            requirementId: requirement.id,
+            requirementTitle: requirement.title,
+            success: true,
+            matchCount: result.matches?.length || 0,
+          };
+        } catch (error) {
+          this.logger.error(`Failed to match requirement ${requirement.id}:`, error);
+          failed++;
+          return {
+            requirementId: requirement.id,
+            requirementTitle: requirement.title,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
       });
 
-      // Map to node results
-      const nodeMatches = allMatches
-        .map((match) => {
-          const embedding = embeddings.find((e) => e.id === match.id);
-          if (!embedding || !embedding.nodeId) {
-            return null;
-          }
-
-          return {
-            nodeId: embedding.nodeId,
-            similarity: match.similarity,
-            symbolMatch: this.checkSymbolMatch(requirementText, embedding),
-            structuralMatch: false,
-          };
-        })
-        .filter((m): m is NonNullable<typeof m> => m !== null)
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 20); // Top 20 matches
-
-      return nodeMatches;
-    } catch (error) {
-      this.logger.error('Failed to find matching nodes:', error);
-      // Fallback to empty array
-      return [];
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
     }
+
+    return {
+      message: `Matched ${matched} out of ${requirements.length} requirements`,
+      projectId,
+      matcherType,
+      total: requirements.length,
+      matched,
+      failed,
+      results,
+    };
+  }
+
+  /** Run match-all for all four baselines so each has stored predictions (fixes 0.0 for other baselines). */
+  async matchAllBaselines(projectId: string) {
+    const matcherTypes: MatcherType[] = ['tfidf', 'embedding', 'structural-only', 'hybrid'];
+    const reqIds = await this.prisma.requirement.findMany({
+      where: { projectId },
+      select: { id: true },
+    });
+    const requirementIds = reqIds.map((r) => r.id);
+
+    const results: Array<{
+      matcherType: MatcherType;
+      total: number;
+      matched: number;
+      failed: number;
+      linksStored: number;
+      message: string;
+    }> = [];
+    for (const matcherType of matcherTypes) {
+      this.logger.log(`[matchAllBaselines] Running ${matcherType} for project ${projectId}`);
+      const out = await this.matchAllRequirements(projectId, matcherType);
+      const linksStored =
+        requirementIds.length === 0
+          ? 0
+          : await this.prisma.requirementMatch.count({
+              where: {
+                requirementId: { in: requirementIds },
+                matcherType,
+              },
+            });
+      results.push({
+        matcherType,
+        total: out.total,
+        matched: out.matched,
+        failed: out.failed,
+        linksStored,
+        message: out.message,
+      });
+    }
+    return { projectId, results };
   }
 
   /**
-   * Improved text similarity calculation (Jaccard + word overlap)
+   * Enqueue match-all jobs for all projects in the system.
+   * Useful for a "research master button" to prepare the entire dataset.
    */
-  private calculateTextSimilarity(text1: string, text2: string): number {
-    if (!text1 || !text2) return 0;
+  async enqueueAllProjectsMatchAll() {
+    const projects = await this.prisma.project.findMany({
+      select: { id: true, name: true },
+    });
 
-    const words1 = new Set(
-      text1
-        .toLowerCase()
-        .split(/\W+/)
-        .filter((w) => w.length > 2)
-    );
-    const words2 = new Set(
-      text2
-        .toLowerCase()
-        .split(/\W+/)
-        .filter((w) => w.length > 2)
-    );
+    for (const project of projects) {
+      this.logger.log(`Enqueuing all baselines match job for project ${project.name} (${project.id})`);
+      await this.queue.enqueue('match-requirements', {
+        projectId: project.id,
+        type: 'match-all-baselines',
+      });
+    }
 
-    if (words1.size === 0 || words2.size === 0) return 0;
-
-    const intersection = new Set([...words1].filter((x) => words2.has(x)));
-    const union = new Set([...words1, ...words2]);
-
-    return intersection.size / union.size;
+    return {
+      message: `Enqueued matching jobs for ${projects.length} projects`,
+      count: projects.length,
+      projects: projects.map((p) => p.name),
+    };
   }
 
-  private checkSymbolMatch(requirementText: string, embedding: any): boolean {
-    const requirementWords = requirementText
-      .toLowerCase()
-      .split(/\W+/)
-      .filter((w) => w.length > 3);
-    const codeText = (embedding.summary || embedding.chunkText || '').toLowerCase();
-
-    return requirementWords.some((word) => codeText.includes(word));
+  async getQueueStatus() {
+    return this.queue.getQueueStatus('match-requirements');
   }
 
   private async getRequirementEmbedding(requirementId: string): Promise<number[] | null> {
@@ -572,13 +652,14 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
       throw new Error('Project not found');
     }
 
-    // Get requirements linked to project
+    // Get requirements linked to project (default UI shows hybrid matcher results only)
     const requirements = await this.prisma.requirement.findMany({
       where: {
         projectId: projectId,
       },
       include: {
         requirementMatches: {
+          where: { matcherType: 'hybrid' },
           include: {
             node: {
               include: {
@@ -600,10 +681,25 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
       requirements: requirements.map((r) => ({
         id: r.id,
         title: r.title,
+        text: r.text,
         type: r.type,
         status: r.status,
         matchCount: r.requirementMatches.length,
         completionPercentage: this.calculateRequirementCompletion(r),
+        requirementMatches: r.requirementMatches.map((m) => ({
+          id: m.id,
+          nodeId: m.nodeId,
+          matchScore: m.matchScore,
+          matchTypes: m.matchTypes,
+          confidence: m.confidence,
+          node: m.node
+            ? {
+                filePath: m.node.filePath,
+                nodePath: m.node.nodePath,
+                nodeType: m.node.nodeType,
+              }
+            : null,
+        })),
       })),
       count: requirements.length,
       completionMetrics,
@@ -715,5 +811,64 @@ Format as JSON array with: {title, text, type: "feature"|"suggestion", priority:
     }
 
     return Math.round(totalCompletion / acceptedRequirements.length);
+  }
+
+  async deleteRequirement(requirementId: string) {
+    this.logger.log(`Deleting requirement: ${requirementId}`);
+
+    const existing = await this.prisma.requirement.findUnique({
+      where: { id: requirementId },
+    });
+
+    if (!existing) {
+      return {
+        message: 'Requirement already deleted or not found',
+        requirementId,
+      };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.requirementMatch.deleteMany({
+        where: { requirementId },
+      });
+
+      await tx.requirement.delete({
+        where: { id: requirementId },
+      });
+    });
+
+    return {
+      message: 'Requirement deleted successfully',
+      requirementId,
+    };
+  }
+
+  async deleteProjectRequirements(projectId: string) {
+    this.logger.log(`Deleting all requirements for project: ${projectId}`);
+
+    const requirements = await this.prisma.requirement.findMany({
+      where: { projectId },
+      select: { id: true },
+    });
+
+    const requirementIds = requirements.map((r) => r.id);
+
+    await this.prisma.$transaction(async (tx) => {
+      if (requirementIds.length > 0) {
+        await tx.requirementMatch.deleteMany({
+          where: { requirementId: { in: requirementIds } },
+        });
+      }
+
+      await tx.requirement.deleteMany({
+        where: { projectId },
+      });
+    });
+
+    return {
+      message: `Deleted ${requirements.length} requirement(s) for project`,
+      projectId,
+      deletedCount: requirements.length,
+    };
   }
 }

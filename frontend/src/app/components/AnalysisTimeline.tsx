@@ -10,6 +10,7 @@ import {
   ShieldIcon,
   DatabaseIcon,
   BrainIcon,
+  SearchIcon,
 } from '../components/LucideIcons';
 
 export interface AnalysisStep {
@@ -31,10 +32,10 @@ interface AnalysisTimelineProps {
 }
 
 const stepIcons = {
-  discovery: <CodeIcon className='h-4 w-4' />,
+  discovery: <SearchIcon className='h-4 w-4' />,
   parsing: <CodeIcon className='h-4 w-4' />,
   analyzing: <BrainIcon className='h-4 w-4' />,
-  storing: <DatabaseIcon className='h-4 w-4' />,
+  embedding: <DatabaseIcon className='h-4 w-4' />,
   ai_analysis: <BrainIcon className='h-4 w-4' />,
   security: <ShieldIcon className='h-4 w-4' />,
   default: <PlayIcon className='h-4 w-4' />,
@@ -85,7 +86,7 @@ export default function AnalysisTimeline({
         </div>
         <div className='h-2 w-full overflow-hidden rounded-full bg-gray-200'>
           <div
-            className='h-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500'
+            className='h-full bg-blue-500 transition-all duration-500'
             style={{ width: `${overallProgress}%` }}
           />
         </div>

@@ -21,6 +21,8 @@ export class QueueService implements OnModuleDestroy {
     this.createQueue('fetch-files');
     this.createQueue('parse-files');
     this.createQueue('embed-chunks');
+    this.createQueue('resolve-cross-file-refs');
+    this.createQueue('match-requirements');
   }
 
   createQueue(name: string): Queue {
@@ -36,14 +38,24 @@ export class QueueService implements OnModuleDestroy {
     return queue;
   }
 
-  createWorker(name: string, processor: any): Worker {
+  createWorker(name: string, processor: any, options: { concurrency?: number } = {}): Worker {
     if (this.workers.has(name)) {
       return this.workers.get(name)!;
     }
 
     const worker = new Worker(name, processor, {
       connection: this.redis,
-      concurrency: 5,
+      concurrency: options.concurrency ?? 5, // Default to 5 if not specified
+      lockDuration: 600000, // 10 minutes lock to handle massive project matchings
+      stalledInterval: 30000,
+      maxStalledCount: 1,
+      removeOnComplete: {
+        age: 3600,
+        count: 10000, // Increased from 1000 to 10000 to show full project progress
+      },
+      removeOnFail: {
+        age: 86400,
+      },
     });
 
     this.workers.set(name, worker);
@@ -70,6 +82,15 @@ export class QueueService implements OnModuleDestroy {
 
   async getQueue(name: string): Promise<Queue> {
     return this.queues.get(name) || this.createQueue(name);
+  }
+
+  async getQueueStatus(queueName: string) {
+    const queue = this.queues.get(queueName);
+    if (!queue) {
+      return { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
+    }
+    const counts = await queue.getJobCounts();
+    return counts;
   }
 
   async onModuleDestroy() {

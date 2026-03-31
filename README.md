@@ -8,6 +8,11 @@ RepoLens is an **open source AI-powered requirements engineering and codebase an
 
 Whether you're joining a new project with a large repo or analyzing existing codebases, RepoLens provides the tools to **understand, analyze, and improve** code quality through AI-powered insights and requirement mapping.
 
+## 📚 Documentation
+- [Architecture Overview](file:///Users/peter/Documents/Projects/AI-Projects/repolens-project/repolens-cloud/repolens-core/ARCHITECTURE.md) - High-level system design.
+- [Scoring Rationale](file:///Users/peter/Documents/Projects/AI-Projects/repolens-project/repolens-cloud/repolens-core/docs/SCORING_RATIONALE.md) - Why we use weighted hybrid scoring.
+- [Project Walkthrough](file:///Users/peter/Documents/Projects/AI-Projects/repolens-project/repolens-cloud/repolens-core/WALKTHROUGH.md) - Getting started and recent updates.
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](docs/CONTRIBUTING.md) for details.

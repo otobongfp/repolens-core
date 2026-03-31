@@ -48,7 +48,11 @@ export interface Project {
   last_analyzed?: string;
   analysis_count: number;
   file_count?: number;
+  node_count?: number;
+  embedding_count?: number;
   size_bytes?: number;
+  progress_percentage?: number;
+  current_step?: string;
 }
 
 export interface ProjectCreateRequest {
@@ -63,9 +67,6 @@ export interface EnvironmentConfig {
   aws_secret_access_key?: string;
   aws_region?: string;
   s3_bucket?: string;
-  neo4j_uri?: string;
-  neo4j_user?: string;
-  neo4j_password?: string;
   use_local_backend: boolean;
   backend_url?: string;
 }
@@ -74,6 +75,20 @@ export interface UserSettings {
   environment_config: EnvironmentConfig;
   tenant_id: string;
   updated_at: string;
+}
+
+/** One experiment/tune run for plotting (from metrics/experiment-runs). */
+export interface ExperimentRun {
+  id: string;
+  projectId: string;
+  runAt: string;
+  matcherType: string;
+  threshold: number;
+  precision: number;
+  recall: number;
+  f1: number;
+  coverage: number;
+  source: 'experiment' | 'tune';
 }
 
 export function useRepolensApi() {
@@ -94,23 +109,28 @@ export function useRepolensApi() {
       }
     }
 
-    // Legacy endpoints - may not exist in current API
+    // MODERN API FLOW: (repositories instead of repository)
     // New flow: Create repository via POST /api/repositories, then analyze via POST /api/repositories/:id/analyze
-    const endpoint = folderPath
-      ? `${apiBase}/repository/analyze/project`
-      : `${apiBase}/repository/analyze`;
+    // Note: This function now tries to find an existing repo or create one if the backend supports it,
+    // but for immediate fix we just update the base paths.
+    
+    // Defaulting to the new pluralized endpoints
+    const endpoint = `${apiBase}/api/repositories`;
 
     // Add timeout to prevent hanging
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for analysis
 
     try {
-      const res = await fetch(endpoint, {
+      // If we don't have an ID yet, we might need a two-step process in the UI, 
+      // but here we align the legacy-style call to the most likely endpoint.
+      const res = await fetch(`${endpoint}/analyze`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(
-          folderPath ? { folder_path: folderPath } : { url },
-        ),
+        body: JSON.stringify({
+          url: url || undefined,
+          localPath: folderPath || undefined,
+        }),
         signal: controller.signal,
       });
 
@@ -142,19 +162,27 @@ export function useRepolensApi() {
     }
   }
 
-  // Legacy function - endpoint may not exist in current API
+  async function getLocalCodebases(): Promise<Array<{ name: string; path: string }>> {
+    const res = await fetch(`${apiBase}/api/repositories/local`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to get local codebases');
+    return await res.json();
+  }
+
+  // Modern function - uses plural /api/repositories
   async function getFiles() {
-    const res = await fetch(`${apiBase}/repository/files`, {
+    const res = await fetch(`${apiBase}/api/repositories/files`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Failed to get files');
     return await res.json();
   }
 
-  // Legacy function - endpoint may not exist in current API
+  // Modern function - uses plural /api/repositories
   async function getFile(path: string) {
     const res = await fetch(
-      `${apiBase}/repository/file?path=${encodeURIComponent(path)}`,
+      `${apiBase}/api/repositories/file?path=${encodeURIComponent(path)}`,
       {
         headers: getAuthHeaders(),
       },
@@ -383,13 +411,69 @@ export function useRepolensApi() {
   async function extractRequirements(
     documentContent: string,
     projectId?: string,
+    options?: { autoMatch?: boolean; matcherType?: string }
   ): Promise<any> {
     const res = await fetch(`${apiBase}/api/requirements/extract`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ documentContent, projectId }),
+      body: JSON.stringify({ 
+        documentContent, 
+        projectId,
+        autoMatch: options?.autoMatch,
+        matcherType: options?.matcherType
+      }),
     });
     if (!res.ok) throw new Error('Failed to extract requirements');
+    return await res.json();
+  }
+
+  async function extractRequirementsFromFile(
+    file: File,
+    projectId?: string,
+    options?: { autoMatch?: boolean; matcherType?: string }
+  ): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (projectId) {
+      formData.append('projectId', projectId);
+    }
+    if (options?.autoMatch) {
+      formData.append('autoMatch', 'true');
+    }
+    if (options?.matcherType) {
+      formData.append('matcherType', options.matcherType);
+    }
+
+    const headers: Record<string, string> = {};
+    const authHeaders = getAuthHeaders();
+    if (authHeaders) {
+      if (authHeaders instanceof Headers) {
+        const authHeader = authHeaders.get('Authorization');
+        if (authHeader) {
+          headers['Authorization'] = authHeader;
+        }
+      } else if (Array.isArray(authHeaders)) {
+        const authEntry = authHeaders.find(([key]) => key.toLowerCase() === 'authorization');
+        if (authEntry) {
+          headers['Authorization'] = authEntry[1];
+        }
+      } else {
+        const authHeader = (authHeaders as Record<string, string>)['Authorization'];
+        if (authHeader) {
+          headers['Authorization'] = authHeader;
+        }
+      }
+    }
+
+    const res = await fetch(`${apiBase}/api/requirements/extract/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: 'Failed to extract requirements from file' }));
+      throw new Error(error.message || 'Failed to extract requirements from file');
+    }
     return await res.json();
   }
 
@@ -406,6 +490,50 @@ export function useRepolensApi() {
     return await res.json();
   }
 
+  async function matchAllRequirements(projectId: string, matcherType?: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/match/all`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ projectId, ...(matcherType ? { matcherType } : {}) }),
+    });
+    if (!res.ok) throw new Error('Failed to match all requirements');
+    return await res.json();
+  }
+
+  /** Run match-all for all four baselines so each has stored predictions (fixes 0.0 in Compare). */
+  async function matchAllBaselines(projectId: string): Promise<{
+    projectId: string;
+    results: Array<{ matcherType: string; total: number; matched: number; failed: number; linksStored: number; message: string }>;
+  }> {
+    const res = await fetch(`${apiBase}/api/requirements/match/all-baselines`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ projectId }),
+    });
+    if (!res.ok) throw new Error('Failed to match all baselines');
+    return await res.json();
+  }
+
+  /** Queue match-all for all four baselines for ALL projects in the system. */
+  async function matchAllAllRequirements(): Promise<{ message: string; count: number; projects: string[] }> {
+    const res = await fetch(`${apiBase}/api/requirements/match/all-all`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to queue matching for all projects');
+    return await res.json();
+  }
+
+  /** Get live status of the matcher queue */
+  async function getQueueStatus(): Promise<{ waiting: number; active: number; completed: number; failed: number; delayed: number }> {
+    const res = await fetch(`${apiBase}/api/requirements/match/queue-status`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to get queue status');
+    return await res.json();
+  }
+
   async function getProjectRequirements(projectId: string): Promise<any> {
     const res = await fetch(
       `${apiBase}/api/requirements/project/${projectId}`,
@@ -414,6 +542,24 @@ export function useRepolensApi() {
       },
     );
     if (!res.ok) throw new Error('Failed to get project requirements');
+    return await res.json();
+  }
+
+  async function deleteRequirement(requirementId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/${requirementId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete requirement');
+    return await res.json();
+  }
+
+  async function deleteProjectRequirements(projectId: string): Promise<any> {
+    const res = await fetch(`${apiBase}/api/requirements/project/${projectId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete project requirements');
     return await res.json();
   }
 
@@ -624,6 +770,130 @@ export function useRepolensApi() {
     return await res.json();
   }
 
+  // Traceability metrics (precision, recall, F1, coverage) and ground truth
+  async function getTraceabilityMetrics(
+    projectId: string,
+    thresholds?: number[],
+    matcherType?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (thresholds?.length) params.set('thresholds', thresholds.join(','));
+    if (matcherType) params.set('matcherType', matcherType);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(
+      `${apiBase}/api/requirements/metrics/${projectId}${q}`,
+      { headers: getAuthHeaders() }
+    );
+    if (!res.ok) throw new Error('Failed to get traceability metrics');
+    return await res.json();
+  }
+
+  /** Side-by-side baseline comparison. Pass threshold (e.g. 0.3) to get all matchers at that τ. */
+  async function getCompare(
+    projectId: string,
+    threshold?: number
+  ): Promise<
+    Array<{ matcherType: string; precision: number; recall: number; f1: number; coverage: number; threshold?: number }>
+  > {
+    const url =
+      threshold != null && threshold >= 0 && threshold <= 1
+        ? `${apiBase}/api/requirements/metrics/compare/${projectId}?threshold=${threshold}`
+        : `${apiBase}/api/requirements/metrics/compare/${projectId}`;
+    const res = await fetch(url, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to get baseline comparison');
+    return res.json();
+  }
+
+  /** Run threshold tuning for one matcher; persist test run. */
+  async function runThresholdTuning(projectId: string, matcherType: string): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/metrics/${projectId}/tune`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ matcherType }),
+      }
+    );
+    if (!res.ok) throw new Error('Failed to run threshold tuning');
+    return res.json();
+  }
+
+  async function getTraceabilityMetricsAtThreshold(
+    projectId: string,
+    threshold: number
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/metrics/${projectId}/at?threshold=${threshold}`,
+      { headers: getAuthHeaders() }
+    );
+    if (!res.ok) throw new Error('Failed to get metrics at threshold');
+    return await res.json();
+  }
+
+  /** Experiment runs for plotting (project-level; omit projectId for all projects). */
+  async function getExperimentRuns(projectId?: string): Promise<ExperimentRun[]> {
+    const q = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    const res = await fetch(
+      `${apiBase}/api/requirements/metrics/experiment-runs${q}`,
+      { headers: getAuthHeaders() }
+    );
+    if (!res.ok) throw new Error('Failed to get experiment runs');
+    return res.json();
+  }
+
+  async function getGroundTruth(projectId: string): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/ground-truth/${projectId}`,
+      { headers: getAuthHeaders() }
+    );
+    if (!res.ok) throw new Error('Failed to get ground truth');
+    return await res.json();
+  }
+
+  async function addGroundTruth(
+    projectId: string,
+    body: { requirementId: string; nodeId: string; source?: string; notes?: string }
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/ground-truth/${projectId}`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(body),
+      }
+    );
+    if (!res.ok) throw new Error('Failed to add ground truth');
+    return await res.json();
+  }
+
+  async function addGroundTruthBulk(
+    projectId: string,
+    body: { links: Array<{ requirementId: string; nodeId: string; source?: string; notes?: string }> }
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/ground-truth/${projectId}/bulk`,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(body),
+      }
+    );
+    if (!res.ok) throw new Error('Failed to bulk add ground truth');
+    return await res.json();
+  }
+
+  async function removeGroundTruth(
+    requirementId: string,
+    nodeId: string
+  ): Promise<any> {
+    const res = await fetch(
+      `${apiBase}/api/requirements/ground-truth?requirementId=${encodeURIComponent(requirementId)}&nodeId=${encodeURIComponent(nodeId)}`,
+      { method: 'DELETE', headers: getAuthHeaders() }
+    );
+    if (!res.ok) throw new Error('Failed to remove ground truth');
+    return await res.json();
+  }
+
   // Search API functions
   async function search(
     query: string,
@@ -720,6 +990,7 @@ export function useRepolensApi() {
   return {
     analyzeRepo,
     analyzeRepoFresh,
+    getLocalCodebases,
     getFiles,
     getFile,
     askRepoQuestion,
@@ -744,8 +1015,15 @@ export function useRepolensApi() {
     getEnvironmentInfo,
     // Requirements
     extractRequirements,
+    extractRequirementsFromFile,
     matchRequirements,
+    matchAllRequirements,
+    matchAllBaselines,
+    matchAllAllRequirements,
+    getQueueStatus,
     getProjectRequirements,
+    deleteRequirement,
+    deleteProjectRequirements,
     verifyMatch,
     acceptRequirement,
     rejectRequirement,
@@ -767,6 +1045,16 @@ export function useRepolensApi() {
     // Versioning
     createRequirementVersion,
     getVersionHistory,
+    // Traceability metrics & ground truth
+    getTraceabilityMetrics,
+    getTraceabilityMetricsAtThreshold,
+    getCompare,
+    runThresholdTuning,
+    getExperimentRuns,
+    getGroundTruth,
+    addGroundTruth,
+    addGroundTruthBulk,
+    removeGroundTruth,
     // Search
     search,
     searchWithRAG,

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRepolensApi } from '../utils/api';
 import { useGraphData } from '../context/GraphDataProvider';
 import FolderSelector from './FolderSelector';
+import { LocalRepoList } from './LocalRepoList';
 
 interface RepoInputProps {
   onAnalyze?: (folderPath: string) => Promise<void>;
@@ -51,6 +52,22 @@ export default function RepoInput({ onAnalyze }: RepoInputProps = {}) {
         onFolderSelect={setSelectedFolder}
         selectedFolder={selectedFolder}
       />
+
+      <LocalRepoList onSelect={async (path) => {
+        setIsLoading(true);
+        setError('');
+        try {
+          const result = await analyzeRepo('', path);
+          setGraph(result.data);
+          setCurrentFolder(path);
+          setUsingCache(result.fromCache);
+        } catch (err) {
+          console.error('Local analysis failed:', err);
+          setError('Failed to analyze local codebase.');
+        } finally {
+          setIsLoading(false);
+        }
+      }} />
 
       {selectedFolder && (
         <div className='mt-6 flex flex-col items-center gap-4'>

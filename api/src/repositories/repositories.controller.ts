@@ -55,6 +55,17 @@ export class RepositoriesController {
     }
   }
 
+  @Post('analyze')
+  @ApiOperation({ summary: 'Create and analyze repository in one step (Direct analysis)' })
+  async analyzeDirect(@Body() body: { url?: string; localPath?: string; projectName?: string }) {
+    return this.repositoriesService.analyzeDirect(body.url, body.projectName, body.localPath);
+  }
+
+  @Get('local')
+  async getLocalCodebases() {
+    return this.repositoriesService.getLocalCodebases();
+  }
+
   @Post(':id/sync')
   @ApiOperation({ summary: 'Sync repository with remote (Core mode - no auth required)' })
   async sync(@Param('id') id: string) {

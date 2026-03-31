@@ -130,9 +130,9 @@ export default function AnalyzePage() {
         status: 'pending',
       },
       {
-        id: 'storing',
-        name: 'Graph Storage',
-        description: 'Storing analysis results in Neo4j',
+        id: 'embedding',
+        name: 'Generating Embeddings',
+        description: 'Creating vector embeddings for semantic search',
         status: 'pending',
       },
       {
@@ -212,14 +212,14 @@ export default function AnalyzePage() {
     }
 
     // Determine which step is currently running
-    if (currentStep.includes('discovering') || currentStep.includes('files')) {
+    if (currentStep.includes('discovery') || currentStep.includes('files')) {
       return stepId === 'discovery'
-        ? { status: 'running', progress: progress.progress_percentage }
+        ? { status: 'running', progress: Math.min(100, progress.progress_percentage || 0) }
         : {
             status:
               stepId === 'parsing' ||
               stepId === 'analyzing' ||
-              stepId === 'storing' ||
+              stepId === 'embedding' ||
               stepId === 'ai_analysis'
                 ? 'completed'
                 : 'pending',
@@ -227,13 +227,13 @@ export default function AnalyzePage() {
     }
     if (currentStep.includes('parsing') || currentStep.includes('parsed')) {
       return stepId === 'parsing'
-        ? { status: 'running', progress: progress.progress_percentage }
+        ? { status: 'running', progress: Math.min(100, progress.progress_percentage || 0) }
         : {
             status:
               stepId === 'discovery'
                 ? 'completed'
                 : stepId === 'analyzing' ||
-                    stepId === 'storing' ||
+                    stepId === 'embedding' ||
                     stepId === 'ai_analysis'
                   ? 'completed'
                   : 'pending',
@@ -244,19 +244,19 @@ export default function AnalyzePage() {
       currentStep.includes('call graph')
     ) {
       return stepId === 'analyzing'
-        ? { status: 'running', progress: progress.progress_percentage }
+        ? { status: 'running', progress: Math.min(100, progress.progress_percentage || 0) }
         : {
             status:
               stepId === 'discovery' || stepId === 'parsing'
                 ? 'completed'
-                : stepId === 'storing' || stepId === 'ai_analysis'
+                : stepId === 'embedding' || stepId === 'ai_analysis'
                   ? 'completed'
                   : 'pending',
           };
     }
-    if (currentStep.includes('storing') || currentStep.includes('neo4j')) {
-      return stepId === 'storing'
-        ? { status: 'running', progress: progress.progress_percentage }
+    if (currentStep.includes('embedding')) {
+      return stepId === 'embedding'
+        ? { status: 'running', progress: Math.min(100, progress.progress_percentage || 0) }
         : {
             status:
               stepId === 'discovery' ||
@@ -270,7 +270,7 @@ export default function AnalyzePage() {
     }
     if (currentStep.includes('ai') || currentStep.includes('insights')) {
       return stepId === 'ai_analysis'
-        ? { status: 'running', progress: progress.progress_percentage }
+        ? { status: 'running', progress: Math.min(100, progress.progress_percentage || 0) }
         : { status: 'completed' };
     }
 
@@ -556,14 +556,14 @@ export default function AnalyzePage() {
                           {analysisProgress.current_step}
                         </span>
                         <span className='text-sm text-blue-300'>
-                          {Math.round(analysisProgress.progress_percentage)}%
+                          {Math.round(Math.min(100, analysisProgress.progress_percentage || 0))}%
                         </span>
                       </div>
                       <div className='mb-2 h-2 w-full rounded-full bg-blue-500/20'>
                         <div
                           className='h-2 rounded-full bg-blue-500 transition-all duration-300'
                           style={{
-                            width: `${analysisProgress.progress_percentage}%`,
+                            width: `${Math.min(100, analysisProgress.progress_percentage || 0)}%`,
                           }}
                         />
                       </div>
@@ -721,7 +721,7 @@ export default function AnalyzePage() {
             <AnalysisTimeline
               steps={analysisSteps}
               currentStep={analysisProgress?.current_step}
-              overallProgress={analysisProgress?.progress_percentage || 0}
+              overallProgress={Math.min(100, analysisProgress?.progress_percentage || 0)}
             />
 
             {/* Analysis Info */}
@@ -735,7 +735,7 @@ export default function AnalyzePage() {
                     Current Step: {analysisProgress.current_step}
                   </div>
                   <div>
-                    Progress: {Math.round(analysisProgress.progress_percentage)}
+                    Progress: {Math.round(Math.min(100, analysisProgress.progress_percentage || 0))}
                     %
                   </div>
                 </div>

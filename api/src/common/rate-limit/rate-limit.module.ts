@@ -13,7 +13,7 @@ import { APP_GUARD } from '@nestjs/core';
       {
         name: 'strict',
         ttl: 60000, // 1 minute
-        limit: 20, // 20 requests per minute (for AI endpoints)
+        limit: 20, // 20 requests per minute
       },
     ]),
   ],
@@ -26,4 +26,3 @@ import { APP_GUARD } from '@nestjs/core';
   exports: [ThrottlerModule],
 })
 export class RateLimitModule {}
-
