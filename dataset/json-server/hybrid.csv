@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.05,0.8333,0.5941,0.6936,1,120,24,82,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.1,0.951,0.4802,0.6382,1,97,5,105,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.15,0.9881,0.4109,0.5804,1,83,1,119,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.2,0.9868,0.3713,0.5396,1,75,1,127,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.25,0.9839,0.302,0.4621,0.85,61,1,141,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.3,1,0.2475,0.3968,0.65,50,0,152,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.4,1,0.2178,0.3577,0.5,44,0,158,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.5,1,0.0446,0.0853,0.3,9,0,193,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.6,1,0.0099,0.0196,0.1,2,0,200,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.7,0,0,0,0,0,0,202,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.8,0,0,0,0,0,0,202,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,hybrid,0.9,0,0,0,0,0,0,202,20,202

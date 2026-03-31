@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.05,0.7362,0.9685,0.8365,1,307,110,10,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.1,0.7362,0.9685,0.8365,1,307,110,10,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.15,0.7362,0.9685,0.8365,1,307,110,10,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.2,0.7362,0.9685,0.8365,1,307,110,10,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.25,0.7506,0.9685,0.8457,1,307,102,10,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.3,0.8411,0.9685,0.9003,1,307,58,10,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.4,0.75,0.4164,0.5355,0.8095,132,44,185,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.5,0.4,0.0063,0.0124,0.1429,2,3,315,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.6,0,0,0,0.0476,0,1,317,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.7,0,0,0,0,0,0,317,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.8,0,0,0,0,0,0,317,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,embedding,0.9,0,0,0,0,0,0,317,21,317

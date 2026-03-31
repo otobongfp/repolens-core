@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.05,0.2588,0.9167,0.4037,1,88,252,8,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.1,0.2588,0.9167,0.4037,1,88,252,8,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.15,0.2588,0.9167,0.4037,1,88,252,8,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.2,0.2588,0.9167,0.4037,1,88,252,8,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.25,0.261,0.8021,0.3939,1,77,218,19,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.3,0.3878,0.7917,0.5205,0.9412,76,120,20,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.4,0.325,0.1354,0.1912,0.4706,13,27,83,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.5,1,0.0104,0.0206,0.0588,1,0,95,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.6,0,0,0,0,0,0,96,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.7,0,0,0,0,0,0,96,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.8,0,0,0,0,0,0,96,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,embedding,0.9,0,0,0,0,0,0,96,17,96

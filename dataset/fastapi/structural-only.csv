@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.05,0.018,0.0806,0.0294,0.8824,5,273,57,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.1,0.0095,0.0161,0.012,0.4118,1,104,61,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.15,0,0,0,0.1176,0,3,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.2,0,0,0,0.0588,0,2,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.25,0,0,0,0.0588,0,2,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.3,0,0,0,0,0,0,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.4,0,0,0,0,0,0,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.5,0,0,0,0,0,0,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.6,0,0,0,0,0,0,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.7,0,0,0,0,0,0,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.8,0,0,0,0,0,0,62,17,62
+569ef3c7-07a5-4ca0-9f22-2a6e119786f2,fastapi,structural-only,0.9,0,0,0,0,0,0,62,17,62

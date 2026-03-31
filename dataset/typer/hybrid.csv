@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.05,0.9906,0.9937,0.9921,1,315,3,2,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.1,0.9904,0.9811,0.9857,1,311,3,6,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.15,0.9899,0.9306,0.9593,1,295,3,22,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.2,0.9898,0.918,0.9525,1,291,3,26,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.25,0.9897,0.9117,0.9491,0.9524,289,3,28,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.3,0.9615,0.2366,0.3797,0.8095,75,3,242,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.4,1,0.0189,0.0372,0.1429,6,0,311,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.5,1,0.0189,0.0372,0.1429,6,0,311,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.6,0,0,0,0,0,0,317,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.7,0,0,0,0,0,0,317,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.8,0,0,0,0,0,0,317,21,317
+eef21880-ed13-496e-84c0-58b7daebcae2,typer,hybrid,0.9,0,0,0,0,0,0,317,21,317

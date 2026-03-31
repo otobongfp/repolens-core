@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.05,0.9057,1,0.9505,1,96,10,0,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.1,0.9057,1,0.9505,1,96,10,0,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.15,0.914,0.8854,0.8995,1,85,8,11,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.2,0.914,0.8854,0.8995,1,85,8,11,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.25,0.8904,0.6771,0.7692,0.9412,65,8,31,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.3,1,0.0521,0.099,0.2353,5,0,91,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.4,0,0,0,0,0,0,96,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.5,0,0,0,0,0,0,96,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.6,0,0,0,0,0,0,96,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.7,0,0,0,0,0,0,96,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.8,0,0,0,0,0,0,96,17,96
+f11341a6-5cb7-49c2-a733-54d9c13d9893,bubbletea,hybrid,0.9,0,0,0,0,0,0,96,17,96

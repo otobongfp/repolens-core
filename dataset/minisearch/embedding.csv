@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.05,0.4387,0.299,0.3556,1,93,119,218,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.1,0.4387,0.299,0.3556,1,93,119,218,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.15,0.4387,0.299,0.3556,1,93,119,218,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.2,0.4387,0.299,0.3556,1,93,119,218,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.25,0.4387,0.299,0.3556,1,93,119,218,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.3,0.5146,0.283,0.3651,1,88,83,223,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.4,0.7385,0.1543,0.2553,0.7,48,17,263,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.5,1,0.0161,0.0316,0.15,5,0,306,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.6,0,0,0,0,0,0,311,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.7,0,0,0,0,0,0,311,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.8,0,0,0,0,0,0,311,20,311
+f6a67773-3f7c-4611-af33-9203f320c0f3,minisearch,embedding,0.9,0,0,0,0,0,0,311,20,311

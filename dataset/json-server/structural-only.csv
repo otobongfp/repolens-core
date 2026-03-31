@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.05,0.2535,0.0891,0.1319,0.5,18,53,184,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.1,0.26,0.0644,0.1032,0.3,13,37,189,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.15,0.25,0.0198,0.0367,0.15,4,12,198,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.2,0.25,0.0198,0.0367,0.15,4,12,198,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.25,0.2,0.0099,0.0189,0.1,2,8,200,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.3,0,0,0,0,0,0,202,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.4,0,0,0,0,0,0,202,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.5,0,0,0,0,0,0,202,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.6,0,0,0,0,0,0,202,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.7,0,0,0,0,0,0,202,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.8,0,0,0,0,0,0,202,20,202
+028db99f-9a90-4ec3-9986-d2c71715db81,json-server,structural-only,0.9,0,0,0,0,0,0,202,20,202
