@@ -13,6 +13,7 @@ import {
   AlertCircleIcon,
 } from './LucideIcons';
 import toast from 'react-hot-toast';
+import { LocalRepoList } from './LocalRepoList';
 
 interface ProjectCreationModalProps {
   isOpen: boolean;
@@ -230,22 +231,40 @@ export default function ProjectCreationModal({
 
               {/* Local Path */}
               {sourceType === 'local' && (
-                <div>
-                  <label className='text-card-foreground mb-2 block text-sm font-medium'>
-                    Local Path *
-                  </label>
-                  <input
-                    type='text'
-                    value={formData.local_path}
-                    onChange={(e) =>
-                      setFormData({ ...formData, local_path: e.target.value })
-                    }
-                    placeholder='/path/to/your/code'
-                    className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2.5 text-base focus:ring-2 focus:outline-none sm:text-sm'
-                  />
-                  <p className='text-muted-foreground mt-1 text-xs'>
-                    Absolute path to your local code directory
-                  </p>
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-border p-4 bg-background/50">
+                    <label className="text-card-foreground mb-3 block text-sm font-medium">
+                      Quick Select (from codebases/)
+                    </label>
+                    <LocalRepoList 
+                      onSelect={(repo) => {
+                        setFormData({
+                          ...formData,
+                          name: formData.name || repo.name,
+                          local_path: repo.path
+                        });
+                        toast.success(`Selected ${repo.name}`);
+                      }} 
+                    />
+                  </div>
+
+                  <div>
+                    <label className='text-card-foreground mb-2 block text-sm font-medium'>
+                      Or Manual Local Path *
+                    </label>
+                    <input
+                      type='text'
+                      value={formData.local_path}
+                      onChange={(e) =>
+                        setFormData({ ...formData, local_path: e.target.value })
+                      }
+                      placeholder='/path/to/your/code'
+                      className='border-border bg-background text-card-foreground focus:ring-primary w-full rounded-lg border px-3 py-2.5 text-base focus:ring-2 focus:outline-none sm:text-sm'
+                    />
+                    <p className='text-muted-foreground mt-1 text-xs'>
+                      Absolute path to your local code directory
+                    </p>
+                  </div>
                 </div>
               )}
 

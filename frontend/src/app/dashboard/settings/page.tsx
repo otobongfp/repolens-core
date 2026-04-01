@@ -43,11 +43,8 @@ export default function SettingsPage() {
     aws_secret_access_key: '',
     aws_region: 'us-east-1',
     s3_bucket: '',
-    neo4j_uri: '',
-    neo4j_user: '',
-    neo4j_password: '',
     use_local_backend: true,
-    backend_url: 'http://localhost:8000',
+    backend_url: 'http://localhost:4000',
   });
   const [connectionTestResults, setConnectionTestResults] = useState<any>(null);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -423,66 +420,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Neo4j Configuration */}
-            <div className='space-y-3'>
-              <h4 className='text-foreground flex items-center gap-2 text-sm font-medium'>
-                <DatabaseIcon className='h-4 w-4' />
-                Neo4j Database
-              </h4>
-              <div className='grid grid-cols-2 gap-3'>
-                <div>
-                  <label className='text-muted-foreground mb-1 block text-xs'>
-                    Database URI
-                  </label>
-                  <input
-                    type='text'
-                    value={envSettings.neo4j_uri || ''}
-                    onChange={(e) =>
-                      setEnvSettings({
-                        ...envSettings,
-                        neo4j_uri: e.target.value,
-                      })
-                    }
-                    placeholder='bolt://localhost:7687'
-                    className='focus:border-primary w-full rounded-lg border border-white/10 bg-white/5 p-2 text-sm text-white placeholder-gray-400 focus:outline-none'
-                  />
-                </div>
-                <div>
-                  <label className='text-muted-foreground mb-1 block text-xs'>
-                    Username
-                  </label>
-                  <input
-                    type='text'
-                    value={envSettings.neo4j_user || ''}
-                    onChange={(e) =>
-                      setEnvSettings({
-                        ...envSettings,
-                        neo4j_user: e.target.value,
-                      })
-                    }
-                    placeholder='neo4j'
-                    className='focus:border-primary w-full rounded-lg border border-white/10 bg-white/5 p-2 text-sm text-white placeholder-gray-400 focus:outline-none'
-                  />
-                </div>
-              </div>
-              <div>
-                <label className='text-muted-foreground mb-1 block text-xs'>
-                  Password
-                </label>
-                <input
-                  type='password'
-                  value={envSettings.neo4j_password || ''}
-                  onChange={(e) =>
-                    setEnvSettings({
-                      ...envSettings,
-                      neo4j_password: e.target.value,
-                    })
-                  }
-                  placeholder='Password...'
-                  className='focus:border-primary w-full rounded-lg border border-white/10 bg-white/5 p-2 text-sm text-white placeholder-gray-400 focus:outline-none'
-                />
-              </div>
-            </div>
 
             {/* Backend Configuration */}
             <div className='space-y-3'>

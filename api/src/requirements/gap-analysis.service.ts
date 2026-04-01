@@ -26,6 +26,7 @@ export class GapAnalysisService {
         },
         include: {
           requirementMatches: {
+            where: { matcherType: 'hybrid' },
             include: {
               node: {
                 include: {
@@ -121,6 +122,7 @@ export class GapAnalysisService {
       where: { id: requirementId },
       include: {
         requirementMatches: {
+          where: { matcherType: 'hybrid' },
           include: {
             node: {
               include: {

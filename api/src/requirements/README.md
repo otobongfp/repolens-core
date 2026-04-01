@@ -30,6 +30,7 @@ POST /requirements/extract
 ```
 
 **Features:**
+
 - AI-powered extraction with retry logic
 - Automatic fallback on errors
 - Priority and complexity detection
@@ -48,6 +49,7 @@ POST /requirements/match
 ```
 
 **Features:**
+
 - Semantic similarity matching
 - Multiple match types (symbol, semantic, structural)
 - Confidence scoring
@@ -65,6 +67,7 @@ GET /requirements/traceability/export/:projectId?format=markdown
 ```
 
 **Features:**
+
 - Full requirement → code → dependencies chain
 - Impact analysis (what breaks if code changes)
 - Export in multiple formats (JSON, CSV, Markdown)
@@ -79,6 +82,7 @@ GET /requirements/project/:projectId
 ```
 
 **Returns:**
+
 - Overall completion percentage
 - Per-requirement completion
 - Match counts and confidence levels
@@ -94,6 +98,7 @@ GET /requirements/drift/requirement/:requirementId
 ```
 
 **Features:**
+
 - Automatic drift detection
 - Score recalculation
 - Severity classification (critical, high, medium)
@@ -110,6 +115,7 @@ GET /requirements/gaps/suggestions/:requirementId
 ```
 
 **Features:**
+
 - Automatic gap identification
 - Priority-based sorting
 - Implementation suggestions
@@ -125,6 +131,7 @@ GET /requirements/compliance/validate/:projectId
 ```
 
 **Features:**
+
 - Comprehensive compliance metrics
 - Multiple export formats (JSON, HTML, Markdown)
 - Validation against standards
@@ -140,6 +147,7 @@ GET /requirements/version/history/:requirementId
 ```
 
 **Features:**
+
 - Version history tracking
 - Change comparison
 - Audit trail
@@ -220,4 +228,3 @@ npm test requirements
 - [ ] Advanced prioritization algorithms
 - [ ] Integration with project management tools
 - [ ] Requirements approval workflows
-

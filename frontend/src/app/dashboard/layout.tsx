@@ -16,6 +16,7 @@ import {
   ChevronUpIcon,
   DatabaseIcon,
   FolderIcon,
+  BarChart3Icon,
 } from '../components/LucideIcons';
 import { useRepolensApi } from '../utils/api';
 import { useApi } from '../context/ApiProvider';
@@ -48,6 +49,12 @@ const sidebarItems: SidebarItem[] = [
     title: 'Match Requirements',
     icon: <PuzzleIcon className='h-5 w-5' />,
     route: '/dashboard/requirements',
+  },
+  {
+    id: 'experiments',
+    title: 'Experiments',
+    icon: <BarChart3Icon className='h-5 w-5' />,
+    route: '/dashboard/experiments',
   },
   {
     id: 'learning',

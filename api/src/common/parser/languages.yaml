@@ -78,11 +78,11 @@ languages:
     export: ''
     aliases: [java]
 
-  # PHP (exports language directly)
+  # PHP (exports { php, php_only })
   - name: php
     extensions: [php, phtml]
     module: tree-sitter-php
-    export: ''
+    export: php
     aliases: [php]
 
   # Swift (exports language directly)

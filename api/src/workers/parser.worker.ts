@@ -25,13 +25,11 @@ export class ParserWorker {
     private readonly queue: QueueService,
     private readonly parserConfig: ParserConfigService
   ) {
-    // Check if tree-sitter is available
     this.treeSitterAvailable = Parser !== null;
 
     if (!this.treeSitterAvailable) {
       this.logger.warn('tree-sitter not available - will use regex fallback for all languages');
     } else {
-      // Initialize parsers for all configured languages
       this.initializeParsers();
     }
   }
@@ -57,21 +55,10 @@ export class ParserWorker {
           continue;
         }
 
-        // Dynamically import the parser module
         const parserModule = require(langConfig.module);
-
-        // Most tree-sitter parsers export the language directly (CommonJS: module.exports = language)
-        // Some export named exports (e.g., tree-sitter-typescript exports .typescript and .tsx)
-        // Try in this order:
-        // 1. Named export (e.g., parserModule.typescript for tree-sitter-typescript)
-        // 2. Direct export (parserModule itself - most CommonJS parsers)
-        // 3. Default export (parserModule.default)
-        // 4. Language property (parserModule.language)
 
         let language = null;
 
-        // 1. Try named export (for tree-sitter-typescript which exports .typescript and .tsx)
-        // Empty string, "default", or "language" means try direct export first
         if (
           langConfig.export &&
           langConfig.export !== '' &&
@@ -79,40 +66,36 @@ export class ParserWorker {
           langConfig.export !== 'language'
         ) {
           language = parserModule[langConfig.export];
+          if (!language) {
+            this.logger.warn(
+              `Named export '${langConfig.export}' not found in ${langConfig.module}. Available keys: ${Object.keys(parserModule).slice(0, 10).join(', ')}`
+            );
+          }
         }
 
-        // 2. Try direct export (most CommonJS parsers export the language directly)
-        // Most tree-sitter parsers: module.exports = language (the language object itself)
         if (
           !language &&
           parserModule &&
           typeof parserModule === 'object' &&
           !Array.isArray(parserModule)
         ) {
-          // Language objects typically have nodeTypeInfo property or are functions
-          // Some parsers (like php, yaml, markdown) may have more properties
-          // Accept it if it has nodeTypeInfo, is a function, or looks like a language object
           const keys = Object.keys(parserModule);
           if (
             parserModule.nodeTypeInfo ||
             typeof parserModule === 'function' ||
-            (keys.length > 0 && keys.length < 100) // Increased limit for parsers with more properties
+            (keys.length > 0 && keys.length < 100)
           ) {
             language = parserModule;
           }
         }
 
-        // 3. Try default export
         if (!language && parserModule.default) {
           language = parserModule.default;
         }
 
-        // 4. Try language property
         if (!language && parserModule.language) {
           language = parserModule.language;
         }
-
-        // Verify it's a valid language object
         if (
           !language ||
           (typeof language !== 'object' && typeof language !== 'function') ||
@@ -131,21 +114,16 @@ export class ParserWorker {
           const parser = new Parser();
           parser.setLanguage(language);
 
-          // If setLanguage succeeds, the language is valid
-
-          // Store parser for all aliases
           for (const alias of langConfig.aliases) {
             this.parsers.set(alias.toLowerCase(), parser);
             this.languageConfigs.set(alias.toLowerCase(), langConfig);
           }
 
-          // Also store by name
           this.parsers.set(langConfig.name.toLowerCase(), parser);
           this.languageConfigs.set(langConfig.name.toLowerCase(), langConfig);
 
           initialized.push(langConfig.name);
         } catch (setLangError: any) {
-          // setLanguage failed - the language object is invalid
           this.logger.warn(
             `Failed to initialize parser for ${langConfig.name} (${langConfig.module}): ` +
               `Invalid language object - ${setLangError.message || setLangError}`
@@ -179,10 +157,11 @@ export class ParserWorker {
     this.logger.log(`Parsing ${path} for repo ${repoId}`);
 
     try {
-      // Get file content from S3
-      const fileBlob = await this.prisma.fileBlob.findFirst({
-        where: { repoId, sha: blobSha },
-      });
+      const fileBlob = await this.prisma.withRetry(() =>
+        this.prisma.fileBlob.findFirst({
+          where: { repoId, sha: blobSha },
+        })
+      );
 
       if (!fileBlob) {
         throw new Error(`FileBlob not found: ${blobSha}`);
@@ -190,7 +169,6 @@ export class ParserWorker {
 
       const content = await this.s3.getFileContent(fileBlob.s3Key);
 
-      // Parse with tree-sitter
       const language = this.detectLanguage(path);
       const ast = await this.parseTree(content, language);
 
@@ -199,58 +177,108 @@ export class ParserWorker {
         return;
       }
 
-      // Store AST in S3
       const astS3Key = await this.s3.storeAST(repoId, sha, path, ast);
-
-      // Extract nodes
       const nodes = this.extractNodes(ast, path, content);
 
-      // Update file blob
-      await this.prisma.fileBlob.update({
-        where: { id: fileBlob.id },
-        data: { parsedAt: new Date() },
-      });
+      await this.prisma.withRetry(() =>
+        this.prisma.fileBlob.update({
+          where: { id: fileBlob.id },
+          data: { parsedAt: new Date() },
+        })
+      );
 
-      // Create Node records and enqueue embeddings
+      // Extract symbol references from AST for call graph
+      const symbolRefs = this.extractSymbolReferences(ast, path, content, nodes);
+
       for (const nodeData of nodes) {
-        // Create or update Node record
-        const node = await this.prisma.node.upsert({
-          where: {
-            repoId_filePath_nodePath_blobSha: {
+        const node = await this.prisma.withRetry(() =>
+          this.prisma.node.upsert({
+            where: {
+              repoId_filePath_nodePath_blobSha: {
+                repoId,
+                filePath: path,
+                nodePath: nodeData.path,
+                blobSha,
+              },
+            },
+            create: {
               repoId,
               filePath: path,
-              nodePath: nodeData.path,
               blobSha,
+              nodePath: nodeData.path,
+              nodeType: nodeData.type || 'export',
+              startLine: nodeData.startLine || 1,
+              endLine: nodeData.endLine || 1,
+              text: nodeData.text,
+              summary: null,
             },
-          },
-          create: {
-            repoId,
-            filePath: path,
-            blobSha,
-            nodePath: nodeData.path,
-            nodeType: nodeData.type || 'export',
-            startLine: nodeData.startLine || 1,
-            endLine: nodeData.endLine || 1,
-            text: nodeData.text,
-            summary: null, // Will be generated by embedding worker
-          },
-          update: {
-            text: nodeData.text,
-            updatedAt: new Date(),
-          },
-        });
+            update: {
+              nodeType: nodeData.type || 'export',
+              startLine: nodeData.startLine || 1,
+              endLine: nodeData.endLine || 1,
+              text: nodeData.text,
+              updatedAt: new Date(),
+            },
+          })
+        );
 
-        // Enqueue embedding job with nodeId
+        // Create Symbol record for this node (if it's a named symbol)
+        if (nodeData.name && nodeData.type && nodeData.type !== 'source_file') {
+          try {
+            await this.prisma.withRetry(() =>
+              this.prisma.symbol.upsert({
+                where: {
+                  repoId_filePath_name_blobSha: {
+                    repoId,
+                    filePath: path,
+                    name: nodeData.name!,
+                    blobSha,
+                  },
+                },
+                create: {
+                  repoId,
+                  filePath: path,
+                  blobSha,
+                  name: nodeData.name!,
+                  kind: nodeData.type,
+                  nodeId: node.id,
+                  nodePath: nodeData.path,
+                  signature: this.extractSignature(nodeData.text, nodeData.type),
+                },
+                update: {
+                  signature: this.extractSignature(nodeData.text, nodeData.type),
+                },
+              })
+            );
+          } catch (error) {
+            this.logger.warn(`Failed to create symbol for ${nodeData.name}:`, error);
+          }
+        }
+
+        // Construct an enriched text for embedding that includes structural context.
+        // This reduces "centroid noise" and allows the embedding model to distinguish
+        // between similar logic in different files or contexts.
+        const enrichedText = `File: ${path}\n` +
+          `Symbol: ${nodeData.name || 'anonymous'}\n` +
+          `Type: ${nodeData.type || 'unknown'}\n` +
+          (nodeData.type === 'function' || nodeData.type === 'method' 
+            ? `Signature: ${this.extractSignature(nodeData.text, nodeData.type)}\n` 
+            : '') +
+          `Code:\n${nodeData.text}`;
+
         await this.queue.enqueue('embed-chunks', {
           repoId,
           sha,
           path,
           nodePath: nodeData.path,
-          nodeText: nodeData.text,
+          nodeText: enrichedText,
           astS3Key,
           nodeId: node.id,
         });
       }
+
+      // Create SymbolRef records for relationships
+      await this.createSymbolRefs(repoId, path, blobSha, symbolRefs, nodes);
 
       const duration = (Date.now() - startTime) / 1000;
       this.logger.debug(`Parsed ${path} in ${duration}s, extracted ${nodes.length} nodes`);
@@ -281,7 +309,6 @@ export class ParserWorker {
   }
 
   private parseTreeFallback(content: string): any {
-    // Fallback to simple structure if tree-sitter fails
     return {
       rootNode: {
         type: 'source_file',
@@ -300,6 +327,7 @@ export class ParserWorker {
     type?: string;
     startLine?: number;
     endLine?: number;
+    name?: string;
   }> {
     const nodes: Array<{
       path: string;
@@ -307,14 +335,13 @@ export class ParserWorker {
       type?: string;
       startLine?: number;
       endLine?: number;
+      name?: string;
     }> = [];
 
-    // If we have a real tree-sitter AST, traverse it properly
     if (ast.rootNode && ast.rootNode.type === 'program') {
       return this.extractNodesFromTreeSitter(ast.rootNode, filePath, content);
     }
 
-    // Fallback to regex-based extraction
     return this.extractNodesFallback(filePath, content);
   }
 
@@ -328,6 +355,7 @@ export class ParserWorker {
     type?: string;
     startLine?: number;
     endLine?: number;
+    name?: string;
   }> {
     const nodes: Array<{
       path: string;
@@ -335,9 +363,9 @@ export class ParserWorker {
       type?: string;
       startLine?: number;
       endLine?: number;
+      name?: string;
     }> = [];
 
-    // Traverse AST and extract functions, classes, methods, exports
     const traverse = (node: any, parentPath: string = '') => {
       const nodeType = node.type;
       const nodePath = parentPath ? `${parentPath}.${nodeType}` : nodeType;
@@ -370,11 +398,11 @@ export class ParserWorker {
             type,
             startLine,
             endLine,
+            name,
           });
         }
       }
 
-      // Recursively traverse children
       for (const child of node.children || []) {
         traverse(child, nodePath);
       }
@@ -382,7 +410,6 @@ export class ParserWorker {
 
     traverse(rootNode);
 
-    // If no nodes found, add root node
     if (nodes.length === 0) {
       nodes.push({
         path: `${filePath}/root`,
@@ -405,6 +432,7 @@ export class ParserWorker {
     type?: string;
     startLine?: number;
     endLine?: number;
+    name?: string;
   }> {
     const nodes: Array<{
       path: string;
@@ -412,9 +440,9 @@ export class ParserWorker {
       type?: string;
       startLine?: number;
       endLine?: number;
+      name?: string;
     }> = [];
 
-    // Fallback: Extract functions using regex
     const functionPattern =
       /(?:function|const|let|var|export\s+(?:async\s+)?function)\s+(\w+)\s*[=\(]/g;
     let match;
@@ -425,7 +453,6 @@ export class ParserWorker {
       const startPos = match.index;
       const startLine = content.substring(0, startPos).split('\n').length;
 
-      // Find end of function (simplified - find matching brace)
       let braceCount = 0;
       let inFunction = false;
       let endPos = startPos;
@@ -453,12 +480,12 @@ export class ParserWorker {
           type: 'function',
           startLine,
           endLine,
+          name: funcName,
         });
         functionCount++;
       }
     }
 
-    // Add root node if no functions found
     if (nodes.length === 0) {
       const lines = content.split('\n');
       nodes.push({
@@ -474,13 +501,11 @@ export class ParserWorker {
   }
 
   private detectLanguage(filePath: string): string {
-    // Try to get language from config
     const langConfig = this.parserConfig.getLanguageByPath(filePath);
     if (langConfig) {
       return langConfig.name;
     }
 
-    // Fallback to extension-based detection
     const ext = filePath.split('.').pop()?.toLowerCase() || '';
     const langMap: Record<string, string> = {
       js: 'javascript',
@@ -505,5 +530,395 @@ export class ParserWorker {
     }
     const normalized = language.toLowerCase();
     return this.parsers.get(normalized) || null;
+  }
+
+  /**
+   * Extract symbol references (calls, imports, inheritance) from AST
+   */
+  private extractSymbolReferences(
+    ast: any,
+    filePath: string,
+    content: string,
+    nodes: Array<{ path: string; name?: string; type?: string; startLine?: number; endLine?: number }>
+  ): Array<{
+    fromNodePath: string;
+    toSymbolName: string;
+    kind: 'calls' | 'imports' | 'inherits' | 'references';
+    context?: string;
+  }> {
+    const refs: Array<{
+      fromNodePath: string;
+      toSymbolName: string;
+      kind: 'calls' | 'imports' | 'inherits' | 'references';
+      context?: string;
+    }> = [];
+
+    if (!ast.rootNode || ast.rootNode.type !== 'program') {
+      return refs;
+    }
+
+    // Map nodes by path for quick lookup
+    const nodeMap = new Map<string, { name?: string; type?: string }>();
+    for (const node of nodes) {
+      nodeMap.set(node.path, node);
+    }
+
+    // Extract imports
+    const extractImports = (node: any) => {
+      if (node.type === 'import_statement' || node.type === 'import_declaration') {
+        const sourceNode = node.childForFieldName('source') || 
+          node.children.find((c: any) => c.type === 'string');
+        if (sourceNode) {
+          const moduleName = sourceNode.text.replace(/['"]/g, '');
+          // Find which node this import belongs to (nearest function/class)
+          const containingNode = this.findContainingNode(node, nodes);
+          if (containingNode) {
+            refs.push({
+              fromNodePath: containingNode.path,
+              toSymbolName: moduleName,
+              kind: 'imports',
+              context: `import from ${moduleName}`,
+            });
+          }
+        }
+      }
+    };
+
+    // Extract function calls
+    const extractCalls = (node: any, containingNodePath: string) => {
+      if (node.type === 'call_expression' || node.type === 'call') {
+        const functionNode = node.childForFieldName('function') || node.children[0];
+        if (functionNode) {
+          const calledName = this.extractIdentifierName(functionNode);
+          if (calledName && calledName !== 'anonymous') {
+            refs.push({
+              fromNodePath: containingNodePath,
+              toSymbolName: calledName,
+              kind: 'calls',
+              context: `calls ${calledName}`,
+            });
+          }
+        }
+      }
+    };
+
+    // Extract class inheritance
+    const extractInheritance = (node: any) => {
+      if (node.type === 'class_declaration' || node.type === 'class_definition') {
+        const superclassNode = node.childForFieldName('superclass') ||
+          node.children.find((c: any) => c.type === 'superclass');
+        if (superclassNode) {
+          const parentName = this.extractIdentifierName(superclassNode);
+          const nameNode = node.childForFieldName('name');
+          const className = nameNode ? nameNode.text : 'anonymous';
+          const nodePath = `${filePath}/class.${className}`;
+          
+          if (parentName) {
+            refs.push({
+              fromNodePath: nodePath,
+              toSymbolName: parentName,
+              kind: 'inherits',
+              context: `extends ${parentName}`,
+            });
+          }
+        }
+      }
+    };
+
+    // Traverse AST to extract references
+    const traverse = (node: any, containingNodePath: string = '') => {
+      extractImports(node);
+      extractInheritance(node);
+      
+      if (containingNodePath) {
+        extractCalls(node, containingNodePath);
+      }
+
+      // Update containing node path if we enter a function/class
+      let newContainingPath = containingNodePath;
+      if (
+        node.type === 'function_declaration' ||
+        node.type === 'function' ||
+        node.type === 'arrow_function' ||
+        node.type === 'method_definition' ||
+        node.type === 'class_declaration' ||
+        node.type === 'class_definition'
+      ) {
+        const nameNode = node.childForFieldName('name') || 
+          node.children.find((c: any) => c.type === 'identifier');
+        const name = nameNode ? nameNode.text : 'anonymous';
+        let type = 'function';
+        if (node.type.includes('class')) type = 'class';
+        if (node.type.includes('method')) type = 'method';
+        newContainingPath = `${filePath}/${type}.${name}`;
+      }
+
+      for (const child of node.children || []) {
+        traverse(child, newContainingPath);
+      }
+    };
+
+    traverse(ast.rootNode);
+
+    return refs;
+  }
+
+  /**
+   * Find the containing node (function/class) for a given AST node
+   */
+  private findContainingNode(
+    astNode: any,
+    nodes: Array<{ path: string; startLine?: number; endLine?: number }>
+  ): { path: string } | null {
+    // This is simplified - in practice, you'd traverse up the AST tree
+    // For now, return the first matching node
+    return nodes.length > 0 ? { path: nodes[0].path } : null;
+  }
+
+  /**
+   * Extract identifier name from AST node
+   */
+  private extractIdentifierName(node: any): string | null {
+    if (node.type === 'identifier') {
+      return node.text;
+    }
+    if (node.type === 'member_expression' || node.type === 'property_access') {
+      const objectNode = node.childForFieldName('object') || node.children[0];
+      const propertyNode = node.childForFieldName('property') || node.children[1];
+      if (propertyNode) {
+        return this.extractIdentifierName(propertyNode);
+      }
+    }
+    if (node.children && node.children.length > 0) {
+      return this.extractIdentifierName(node.children[0]);
+    }
+    return null;
+  }
+
+  /**
+   * Create SymbolRef records from extracted references.
+   * Resolves target symbols REPO-WIDE (cross-file) so that calls,
+   * imports, and inheritance links span the entire repository graph.
+   */
+  private async createSymbolRefs(
+    repoId: string,
+    filePath: string,
+    blobSha: string,
+    symbolRefs: Array<{
+      fromNodePath: string;
+      toSymbolName: string;
+      kind: 'calls' | 'imports' | 'inherits' | 'references';
+      context?: string;
+    }>,
+    nodes: Array<{ path: string; name?: string }>
+  ): Promise<void> {
+    if (symbolRefs.length === 0) {
+      return;
+    }
+
+    try {
+      // Local symbols (current file) — used for fromSymbol resolution
+      const localSymbols = await this.prisma.symbol.findMany({
+        where: { repoId, filePath, blobSha },
+      });
+      const localSymbolMap = new Map<string, string>();
+      for (const s of localSymbols) {
+        localSymbolMap.set(s.name, s.id);
+      }
+
+      // Local nodes (current file) — used for fromNode resolution
+      const localNodes = await this.prisma.node.findMany({
+        where: { repoId, filePath, blobSha },
+      });
+      const localNodeMap = new Map<string, string>();
+      for (const n of localNodes) {
+        localNodeMap.set(n.nodePath, n.id);
+      }
+
+      // Collect unique target names and resolve them REPO-WIDE
+      const targetNames = [...new Set(symbolRefs.map((r) => r.toSymbolName))];
+      const repoSymbols = await this.prisma.symbol.findMany({
+        where: { repoId, name: { in: targetNames } },
+        select: { id: true, name: true, nodeId: true, filePath: true },
+      });
+
+      // Map target name → { symbolId, nodeId }. When duplicates exist,
+      // prefer symbols outside the current file (cross-file is the gap).
+      const repoTargetMap = new Map<string, { symbolId: string; nodeId: string }>();
+      for (const s of repoSymbols) {
+        if (!repoTargetMap.has(s.name) || s.filePath !== filePath) {
+          repoTargetMap.set(s.name, { symbolId: s.id, nodeId: s.nodeId });
+        }
+      }
+
+      let createdCount = 0;
+      for (const ref of symbolRefs) {
+        const fromNodeId = localNodeMap.get(ref.fromNodePath);
+        if (!fromNodeId) continue;
+
+        const fromNodeData = nodes.find((n) => n.path === ref.fromNodePath);
+        const fromSymbolId = fromNodeData?.name ? localSymbolMap.get(fromNodeData.name) : null;
+        if (!fromSymbolId) continue;
+
+        const target = repoTargetMap.get(ref.toSymbolName);
+        if (!target) continue;
+
+        try {
+          await this.prisma.withRetry(() =>
+            this.prisma.symbolRef.create({
+              data: {
+                repoId,
+                fromSymbolId,
+                toSymbolId: target.symbolId,
+                fromNodeId,
+                toNodeId: target.nodeId,
+                kind: ref.kind,
+                context: ref.context,
+              },
+            })
+          );
+          createdCount++;
+        } catch (error: any) {
+          if (error.code !== 'P2002' && !error.message?.includes('Foreign key')) {
+            this.logger.warn(
+              `Failed to create SymbolRef: ${ref.fromNodePath} -> ${ref.toSymbolName}`,
+              error
+            );
+          }
+        }
+      }
+
+      this.logger.debug(
+        `Created ${createdCount}/${symbolRefs.length} symbol references for ${filePath} (repo-wide resolution)`
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to create symbol references for ${filePath}:`, error);
+    }
+  }
+
+  /**
+   * Deferred cross-file symbol resolution pass.
+   *
+   * During concurrent parsing, file A may reference a symbol in file B that
+   * hasn't been parsed yet. This method re-scans all nodes in the repo and
+   * creates SymbolRef records for any cross-file references that were missed.
+   *
+   * Should be called after all parse jobs for a repo have completed.
+   */
+  async resolveCrossFileRefs(repoId: string): Promise<number> {
+    this.logger.log(`Starting cross-file symbol resolution for repo ${repoId}`);
+
+    const allSymbols = await this.prisma.symbol.findMany({
+      where: { repoId },
+      select: { id: true, name: true, nodeId: true, filePath: true },
+    });
+
+    if (allSymbols.length === 0) return 0;
+
+    // Build a quick lookup: name → Symbol[]
+    const symbolsByName = new Map<string, typeof allSymbols>();
+    for (const s of allSymbols) {
+      const arr = symbolsByName.get(s.name) || [];
+      arr.push(s);
+      symbolsByName.set(s.name, arr);
+    }
+
+    // Collect existing refs to avoid duplicates
+    const existingRefs = await this.prisma.symbolRef.findMany({
+      where: { repoId },
+      select: { fromNodeId: true, toNodeId: true },
+    });
+    const existingRefSet = new Set(existingRefs.map((r) => `${r.fromNodeId}:${r.toNodeId}`));
+
+    // For each symbol, scan its node text for mentions of other cross-file symbols
+    const allNodes = await this.prisma.node.findMany({
+      where: { repoId },
+      select: { id: true, text: true, filePath: true },
+    });
+    const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+
+    // Build escaped-regex lookup for symbol names that appear in multiple files
+    const crossFileNames = [...symbolsByName.keys()];
+
+    let created = 0;
+    for (const sourceSymbol of allSymbols) {
+      const sourceNode = nodeMap.get(sourceSymbol.nodeId);
+      if (!sourceNode) continue;
+
+      for (const targetName of crossFileNames) {
+        const targets = symbolsByName.get(targetName)!;
+
+        for (const targetSymbol of targets) {
+          // Skip self-references and same-file (already handled during parsing)
+          if (targetSymbol.id === sourceSymbol.id) continue;
+          if (targetSymbol.filePath === sourceSymbol.filePath) continue;
+
+          const key = `${sourceNode.id}:${targetSymbol.nodeId}`;
+          if (existingRefSet.has(key)) continue;
+
+          // Check if the source node text mentions the target symbol name
+          const escaped = targetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`\\b${escaped}\\b`);
+          if (!regex.test(sourceNode.text)) continue;
+
+          try {
+            await this.prisma.symbolRef.create({
+              data: {
+                repoId,
+                fromSymbolId: sourceSymbol.id,
+                toSymbolId: targetSymbol.id,
+                fromNodeId: sourceNode.id,
+                toNodeId: targetSymbol.nodeId,
+                kind: 'references',
+                context: `Cross-file: ${sourceSymbol.name} → ${targetName}`,
+              },
+            });
+            created++;
+            existingRefSet.add(key);
+          } catch (error: any) {
+            if (error.code !== 'P2002') {
+              this.logger.warn(
+                `Failed to create cross-file ref: ${sourceSymbol.name} -> ${targetName}`,
+                error
+              );
+            }
+          }
+        }
+      }
+    }
+
+    this.logger.log(
+      `Cross-file resolution complete for repo ${repoId}: ${created} new SymbolRef records created`
+    );
+    return created;
+  }
+
+  /**
+   * Extract function/class signature from text
+   */
+  private extractSignature(text: string, type: string): string | null {
+    if (!text) return null;
+
+    // Extract first line for function signature
+    const lines = text.split('\n');
+    const firstLine = lines[0]?.trim() || '';
+
+    // For functions, extract up to opening brace
+    if (type === 'function' || type === 'method') {
+      const match = firstLine.match(/^(?:async\s+)?(?:function\s+)?\w*\s*\([^)]*\)/);
+      if (match) {
+        return match[0];
+      }
+    }
+
+    // For classes, extract class declaration
+    if (type === 'class') {
+      const match = firstLine.match(/^class\s+\w+(?:\s+extends\s+\w+)?/);
+      if (match) {
+        return match[0];
+      }
+    }
+
+    return firstLine.substring(0, 100); // Fallback: first 100 chars
   }
 }

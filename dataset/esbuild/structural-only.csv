@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.05,0.0506,0.0476,0.049,0.8824,9,169,180,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.1,0.0682,0.0476,0.0561,0.7059,9,123,180,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.15,0.0816,0.0212,0.0336,0.2941,4,45,185,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.2,0,0,0,0.1176,0,12,189,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.25,0,0,0,0.1176,0,11,189,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.3,0,0,0,0.0588,0,8,189,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.4,0,0,0,0.0588,0,8,189,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.5,0,0,0,0,0,0,189,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.6,0,0,0,0,0,0,189,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.7,0,0,0,0,0,0,189,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.8,0,0,0,0,0,0,189,17,189
+34a6d538-0333-43fc-9dc9-8308f51e28f4,esbuild,structural-only,0.9,0,0,0,0,0,0,189,17,189

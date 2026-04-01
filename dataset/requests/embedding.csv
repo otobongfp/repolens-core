@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.05,0.1618,0.873,0.273,1,55,285,8,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.1,0.1618,0.873,0.273,1,55,285,8,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.15,0.1487,0.746,0.248,1,47,269,16,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.2,0.1045,0.3333,0.1591,1,21,180,42,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.25,0.1048,0.1746,0.131,0.8235,11,94,52,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.3,0.2115,0.1746,0.1913,0.6471,11,41,52,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.4,0.375,0.0476,0.0845,0.2941,3,5,60,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.5,0,0,0,0,0,0,63,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.6,0,0,0,0,0,0,63,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.7,0,0,0,0,0,0,63,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.8,0,0,0,0,0,0,63,17,63
+46acf394-39b6-4dc4-927f-eda8fc9927a7,requests,embedding,0.9,0,0,0,0,0,0,63,17,63

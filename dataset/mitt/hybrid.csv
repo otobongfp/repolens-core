@@ -1,0 +1,13 @@
+projectId,projectName,matcherType,threshold,precision,recall,f1,coverage,tp,fp,fn,totalRequirements,groundTruthLinks
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.05,0.6735,0.9565,0.7904,1,66,32,3,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.1,0.8983,0.7681,0.8281,1,53,6,16,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.15,0.9767,0.6087,0.75,0.95,42,1,27,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.2,1,0.5652,0.7222,0.9,39,0,30,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.25,1,0.5072,0.6731,0.85,35,0,34,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.3,1,0.4348,0.6061,0.8,30,0,39,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.4,1,0.3623,0.5319,0.7,25,0,44,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.5,1,0.3333,0.5,0.6,23,0,46,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.6,1,0.1159,0.2078,0.2,8,0,61,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.7,0,0,0,0,0,0,69,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.8,0,0,0,0,0,0,69,20,69
+5ecc4ad5-ccdc-457b-9ab6-2d889283fe1b,mitt,hybrid,0.9,0,0,0,0,0,0,69,20,69

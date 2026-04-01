@@ -160,7 +160,7 @@ export class McpService {
       },
       {
         name: 'repolens_suggest_implementation',
-        description: 'Generate AI-powered implementation suggestions for a requirement gap.',
+        description: 'Generate implementation suggestions for a requirement gap.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -279,6 +279,7 @@ export class McpService {
               where: { id: request.arguments.requirement_id },
               include: {
                 requirementMatches: {
+                  where: { matcherType: 'hybrid' },
                   include: {
                     node: {
                       include: {
@@ -377,6 +378,7 @@ export class McpService {
         requirementMatches: {
           where: {
             requirementId,
+            matcherType: 'hybrid',
           },
         },
       },
